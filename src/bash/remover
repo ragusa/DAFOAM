@@ -1,0 +1,19 @@
+#!/bin/bash
+base_dir="$(pwd)/solution-space/HeatPlateBoundaryTimeDependent"
+# file_dir="/constant/transportProperties"
+
+while read DT; do
+	#if [[ ! -d "$DT" ]]; then	
+	#	cp -r "$base_dir" "$DT" 
+	#fi
+	# rm "./solution-space/$DT/constant/newTP"
+	if [[ -d "./solution-space/$DT" ]]; then	
+		rm -r "$(pwd)/solution-space/$DT" 
+	fi
+	
+done < DT_values
+
+echo "Performed the Task"
+
+
+
