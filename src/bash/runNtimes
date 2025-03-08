@@ -1,0 +1,17 @@
+#!/bin/bash
+base_dir="$(pwd)"
+
+
+while read DT; do
+	
+	case_dir="$base_dir/solution-space/$DT"
+	cd $case_dir
+	blockMesh > case-blockmesh.log 2>&1
+	laplacianFoam > case-run.log 2>&1
+	cd $base_dir
+done < DT_values
+
+echo "Performed the Task"
+
+
+

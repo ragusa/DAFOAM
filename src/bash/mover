@@ -1,0 +1,15 @@
+#!/bin/bash
+base_dir="HeatPlateBoundaryTimeDependent"
+file_dir="/constant/transportProperties"
+
+while read DT; do
+	if [[ ! -d "$DT" ]]; then	
+		cp -r "$base_dir" "$DT" 
+	fi
+	mv "./$DT/transportProperties" "./$DT/constant/transportProperties"
+done < DT_values
+
+echo "Performed the Task"
+
+
+
