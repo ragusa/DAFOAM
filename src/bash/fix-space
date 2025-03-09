@@ -1,24 +1,29 @@
 #!/bin/bash
-base_dir="$(pwd)/solution-space/HeatPlateBoundaryTimeDependent"
-file_dir="/constant/transportProperties"
+
+#run this file first to setup the directory
+# then run runNtimes file
+
+solution_space="../../snapshots/td_heat_conduction"
+base_dir="$solution_space/HeatPlateBoundaryTimeDependent"
+file_dir="constant/transportProperties"
 
 while read DT; do
-	if [[ ! -d "./solution-space/$DT" ]]; then	
-		cp -r "$base_dir" "./solution-space/$DT" 
+	if [[ ! -d "$solution_space/$DT" ]]; then	
+		cp -r "$base_dir" "$solution_space/$DT" 
 	fi
-	transportProperties="./solution-space/$DT$file_dir"
+	transportProperties="$solution_space/$DT/$file_dir"
 	while IFS= read -r line; do
 		 
 		 if [[ "$line" =~ ^DT ]]; then
 		 	line="DT    $DT;"
 		 fi
-		 echo "$line" >> "./solution-space/$DT/constant/newTP"
+		 echo "$line" >> "$solution_space/$DT/constant/newTP"
 	done < $transportProperties
 	
 	 rm $transportProperties
-	 mv "./solution-space/$DT/constant/newTP" "./solution-space/$DT/constant/transportProperties"
+	 mv "$solution_space/$DT/constant/newTP" "$solution_space/$DT/constant/transportProperties"
 	
-done < DT_values
+done < $solution_space/DT_values
 
 echo "Performed the Task"
 
