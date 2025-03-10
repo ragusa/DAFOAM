@@ -41,8 +41,8 @@ class Snapshot_manager:
         self.time_steps_for_each_case = {}
         
         for cs in self.list_cases:
-            # List all items in the expanded base directory
-            case_directory = os.path.join(target_directory, cs)
+            # List all items in the target  directory
+            case_directory = os.path.join(self.target_directory, cs)
             list_current_directory = os.listdir(case_directory)
 
             # Filter directories that are named with numeric values and exist
