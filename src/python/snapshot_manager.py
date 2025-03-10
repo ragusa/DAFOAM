@@ -5,7 +5,7 @@ import numpy as np
 import random
 
 class Snapshot_manager:
-    def __init__(self, source_directory, _directory, geim_directory, case_fraction_min, snap_fraction_per_case_min):
+    def __init__(self, source_directory, symlinked_cases_directory, geim_directory, case_fraction_min, snap_fraction_per_case_min):
         self.source_directory = source_directory
         self.symlinked_cases_directory = symlinked_cases_directory
         self.geim_directory = geim_directory
