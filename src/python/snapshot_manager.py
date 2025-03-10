@@ -125,7 +125,7 @@ class Snapshot_manager:
         #create time directory name
         dir_name = case + "_" + time_step
         #construct the path
-        dir_path = os.path.join(geim_directory, dir_name)
+        dir_path = os.path.join(self.geim_directory, dir_name)
         #make the directory
         os.makedirs(dir_path, exist_ok=True)
 
