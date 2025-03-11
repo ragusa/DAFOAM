@@ -125,7 +125,7 @@ class Snapshot_manager:
         #create time directory name
         dir_name = case + "_" + time_step
         #construct the path
-        dir_path = os.path.join(self.geim_directory, dir_name)
+        dir_path = os.path.join(geim_directory, dir_name)
         #make the directory
         os.makedirs(dir_path, exist_ok=True)
 
@@ -144,6 +144,16 @@ class Snapshot_manager:
                 # copy the directory with symlinks
                 shutil.copytree(source_dir_path, target_dir_path, dirs_exist_ok=True, symlinks=True)
     
+    def set_environment_random(self):
+        self.replicate_directory_structure()
+        self.create_symlinks_of_files_to_the_files_in_original_directory()
+        self.list_cases_symlinked_directory()
+
+        self.build_dict_time_steps_for_each_case()
+        self.randomly_choose_cases()
+        self.randomly_choose_time_steps()
+        self.copy_necessary_files_dirs_in_geim_dir()
+        self.copy_chosen_time_steps_to_virtual_OF_directory_for_geim()
 
                 
 
