@@ -73,8 +73,6 @@ class Snapshot_manager:
 
         #determine the number of chosen cases
         self.Nchosen_cases = int(np.ceil(self.case_fraction_min * self.Ncases))
-        print(self.Nchosen_cases)
-        print(self.Ncases)
         # randomly sample the cases
         self.chosen_cases = random.sample(self.list_cases, self.Nchosen_cases)
     
@@ -125,7 +123,7 @@ class Snapshot_manager:
         #create time directory name
         dir_name = case + "_" + time_step
         #construct the path
-        dir_path = os.path.join(geim_directory, dir_name)
+        dir_path = os.path.join(self.geim_directory, dir_name)
         #make the directory
         os.makedirs(dir_path, exist_ok=True)
 
