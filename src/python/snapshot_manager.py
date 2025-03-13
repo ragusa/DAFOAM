@@ -121,28 +121,34 @@ class Snapshot_manager:
     
     def make_dir_in_geim_directory(self, case, time_step):
         #create time directory name
-        dir_name = case + "_" + time_step
+        index_case = self.chosen_cases.index(case)
+        str_index_case = str(index_case)
+        structured_str_index_case = str_index_case.zfill(6)
+        dir_name = time_step + structured_str_index_case 
         #construct the path
         dir_path = os.path.join(self.geim_directory, dir_name)
         #make the directory
         os.makedirs(dir_path, exist_ok=True)
 
-        return dir_path
+        return dir_path, dir_name
         
 
     def copy_chosen_time_steps_to_virtual_OF_directory_for_geim(self):
 
         #loop over the dictionary
+        self.time_directory_name_in_geim_directory = []
         for key, value in self.chosen_time_steps_for_each_chosen_case.items():
             for t_step in value:
                 #construct the source directory path to copy from
                 source_dir_path = os.path.join(self.symlinked_cases_directory, key, t_step)
                 #construct the taget directory path to copy to
-                target_dir_path = self.make_dir_in_geim_directory(key,t_step)
+                target_dir_path, target_dir_name = self.make_dir_in_geim_directory(key,t_step)
+                self.time_directory_name_in_geim_directory.append(target_dir_name)
                 # copy the directory with symlinks
                 shutil.copytree(source_dir_path, target_dir_path, dirs_exist_ok=True, symlinks=True)
     
     def set_environment_random(self):
+    	#it is random because the cases and snaps are selected randomly
         self.replicate_directory_structure()
         self.create_symlinks_of_files_to_the_files_in_original_directory()
         self.list_cases_symlinked_directory()
