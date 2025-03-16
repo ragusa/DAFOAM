@@ -5,10 +5,11 @@ import numpy as np
 import random
 
 class Snapshot_manager:
-    def __init__(self, source_directory, symlinked_cases_directory, geim_directory, case_fraction_min, snap_fraction_per_case_min):
+    def __init__(self, source_directory, symlinked_cases_directory, geim_directory, reconstruction_directory, case_fraction_min, snap_fraction_per_case_min):
         self.source_directory = source_directory
         self.symlinked_cases_directory = symlinked_cases_directory
         self.geim_directory = geim_directory
+        self.reconstruction_directory = reconstruction_directory
         self.case_fraction_min = case_fraction_min
         self.snap_fraction_per_case_min = snap_fraction_per_case_min
 
@@ -75,11 +76,15 @@ class Snapshot_manager:
         self.Nchosen_cases = int(np.ceil(self.case_fraction_min * self.Ncases))
         # randomly sample the cases
         self.chosen_cases = random.sample(self.list_cases, self.Nchosen_cases)
+        # create list of the unchosen cases
+        chosen_set = set(self.chosen_cases)
+        self.unchosen_cases = [case for case in self.list_cases if case not in chosen_set]
     
     def randomly_choose_time_steps(self):
         #initialize dictionaries
         self.Nchosen_time_steps_for_each_chosen_case = {}
         self.chosen_time_steps_for_each_chosen_case = {}
+        self.unchosen_time_steps_for_each_chosen_case = {}
 
         for cs in self.chosen_cases:
             #determine how many snaps the case has
@@ -90,6 +95,9 @@ class Snapshot_manager:
             self.Nchosen_time_steps_for_each_chosen_case[cs] = Nchosen_snap
             #randomly sample the chosen time steps
             self.chosen_time_steps_for_each_chosen_case[cs] = random.sample(self.time_steps_for_each_case[cs], Nchosen_snap)
+            chosen_set = set(self.chosen_time_steps_for_each_chosen_case[cs])
+            self.unchosen_time_steps_for_each_chosen_case[cs] = [time_step for time_step in self.time_steps_for_each_case[cs] if time_step not in chosen_set]
+
     
         
     def copy_necessary_files_dirs_in_geim_dir(self):
@@ -121,7 +129,7 @@ class Snapshot_manager:
     
     def make_dir_in_geim_directory(self, case, time_step):
         #create time directory name
-        index_case = self.chosen_cases.index(case)
+        index_case = self.list_cases.index(case)
         str_index_case = str(index_case)
         structured_str_index_case = str_index_case.zfill(6)
         dir_name = time_step + structured_str_index_case 
@@ -159,7 +167,54 @@ class Snapshot_manager:
         self.copy_necessary_files_dirs_in_geim_dir()
         self.copy_chosen_time_steps_to_virtual_OF_directory_for_geim()
 
+
+    def set_reconstruction_directory(self):
+        #select a case, it could be random
+        cs = self.chosen_cases[0]
+        case_dir = os.path.join(self.symlinked_cases_directory, cs)
+        
+        #build source directory path to copy
+        system_dir_in_case_dir = os.path.join(case_dir, "system")
+        constant_dir_in_case_dir = os.path.join(case_dir, "constant")
+        zero_dir_in_case_dir = os.path.join(case_dir, "0")
+
+        #build target directory path to copy to
+        system_dir_in_reconstruction_dir = os.path.join(self.reconstruction_directory, "system")
+        constant_dir_in_reconstruction_dir = os.path.join(self.reconstruction_directory, "constant")
+        zero_dir_in_reconstruction_dir = os.path.join(self.reconstruction_directory, "0")
+
+        #create directories in the virtual OF directory for GEIM
+        os.makedirs(zero_dir_in_reconstruction_dir, exist_ok=True)
+        os.makedirs(constant_dir_in_reconstruction_dir,exist_ok=True)
+        os.makedirs(system_dir_in_reconstruction_dir, exist_ok=True)
+
+        #copy the directory to the virtual OF directory for GEIM
+        shutil.copytree(system_dir_in_case_dir, system_dir_in_reconstruction_dir, dirs_exist_ok=True, symlinks=True)
+        shutil.copytree(constant_dir_in_case_dir, constant_dir_in_reconstruction_dir, dirs_exist_ok=True, symlinks=True)
+        shutil.copytree(zero_dir_in_case_dir, zero_dir_in_reconstruction_dir, dirs_exist_ok=True, symlinks=True)
+
                 
 
-        
+    def make_dir_in_reconstruction_directory(self, case, time_step):
+        #create time directory name
+        index_case = self.list_cases.index(case)
+        str_index_case = str(index_case)
+        structured_str_index_case = str_index_case.zfill(6)
+        dir_name = time_step + structured_str_index_case 
+        #construct the path
+        dir_path = os.path.join(self.reconstruction_directory, dir_name)
+        #make the directory
+        os.makedirs(dir_path, exist_ok=True)
+
+        return dir_path, dir_name
+    
+    def copy_a_snap_to_the_reconstruction_directory(self, OF_case, time_step):
+        cs_dir = os.path.join(self.symlinked_cases_directory, OF_case)
+        time_dir = os.path.join(cs_dir, time_step)
+        shutil.copytree(time_dir, self.reconstruction_directory, dirs_exist_ok=True, symlinks=True)
+
+        return time_dir
+
+    
+    
 
