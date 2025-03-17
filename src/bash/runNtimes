@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# first, run fix-space file
+
+solution_space="../../snapshots/td_heat_conduction"
+from_case_dir_to_base_dir="../../../src/bash" 
+
+
+while read DT; do
+	
+	case_dir="$solution_space/$DT"
+	cd $case_dir
+	blockMesh > case-blockmesh.log 2>&1
+	laplacianFoam > case-run.log 2>&1
+	cd $from_case_dir_to_base_dir
+done < $solution_space/DT_values
+
+echo "Performed the Task"
+
+
+
