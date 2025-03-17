@@ -1,5 +1,4 @@
 import shutil
-import subprocess
 import os
 import numpy as np
 import random
@@ -8,8 +7,17 @@ class Snapshot_manager:
     def __init__(self, source_directory, symlinked_cases_directory, geim_directory, reconstruction_directory, case_fraction_min, snap_fraction_per_case_min):
         self.source_directory = source_directory
         self.symlinked_cases_directory = symlinked_cases_directory
+        if os.path.exists(self.symlinked_cases_directory):
+            shutil.rmtree(self.symlinked_cases_directory)
+
         self.geim_directory = geim_directory
+        if os.path.exists(self.geim_directory):
+            shutil.rmtree(self.geim_directory)
+
         self.reconstruction_directory = reconstruction_directory
+        if os.path.exists(self.reconstruction_directory):
+            shutil.rmtree(self.reconstruction_directory)
+
         self.case_fraction_min = case_fraction_min
         self.snap_fraction_per_case_min = snap_fraction_per_case_min
 
@@ -113,13 +121,20 @@ class Snapshot_manager:
 
         #build target directory path to copy to
         system_dir_in_geim_dir = os.path.join(self.geim_directory, "system")
+        if os.path.exists(system_dir_in_geim_dir):
+                shutil.rmtree(system_dir_in_geim_dir)
         constant_dir_in_geim_dir = os.path.join(self.geim_directory, "constant")
+        if os.path.exists(constant_dir_in_geim_dir):
+                shutil.rmtree(constant_dir_in_geim_dir)
         zero_dir_in_geim_dir = os.path.join(self.geim_directory, "0")
+        if os.path.exists(zero_dir_in_geim_dir):
+                shutil.rmtree(zero_dir_in_geim_dir)
 
         #create directories in the virtual OF directory for GEIM
         os.makedirs(zero_dir_in_geim_dir, exist_ok=True)
         os.makedirs(constant_dir_in_geim_dir,exist_ok=True)
         os.makedirs(system_dir_in_geim_dir, exist_ok=True)
+            
 
         #copy the directory to the virtual OF directory for GEIM
         shutil.copytree(system_dir_in_case_dir, system_dir_in_geim_dir, dirs_exist_ok=True, symlinks=True)
@@ -192,7 +207,6 @@ class Snapshot_manager:
         shutil.copytree(system_dir_in_case_dir, system_dir_in_reconstruction_dir, dirs_exist_ok=True, symlinks=True)
         shutil.copytree(constant_dir_in_case_dir, constant_dir_in_reconstruction_dir, dirs_exist_ok=True, symlinks=True)
         shutil.copytree(zero_dir_in_case_dir, zero_dir_in_reconstruction_dir, dirs_exist_ok=True, symlinks=True)
-
                 
 
     def make_dir_in_reconstruction_directory(self, case, time_step):
@@ -200,20 +214,18 @@ class Snapshot_manager:
         index_case = self.list_cases.index(case)
         str_index_case = str(index_case)
         structured_str_index_case = str_index_case.zfill(6)
-        dir_name = time_step + structured_str_index_case 
+        self.reconstruction_time_dir_name = time_step + structured_str_index_case 
         #construct the path
-        dir_path = os.path.join(self.reconstruction_directory, dir_name)
+        self.reconstruction_time_dir_path = os.path.join(self.reconstruction_directory, self.reconstruction_time_dir_name)
         #make the directory
-        os.makedirs(dir_path, exist_ok=True)
+        os.makedirs(self.reconstruction_time_dir_path, exist_ok=True)
 
-        return dir_path, dir_name
     
     def copy_a_snap_to_the_reconstruction_directory(self, OF_case, time_step):
-        cs_dir = os.path.join(self.symlinked_cases_directory, OF_case)
-        time_dir = os.path.join(cs_dir, time_step)
-        shutil.copytree(time_dir, self.reconstruction_directory, dirs_exist_ok=True, symlinks=True)
+        self.real_cs_dir = os.path.join(self.symlinked_cases_directory, OF_case)
+        self.real_time_dir = os.path.join(self.real_cs_dir, time_step)
+        shutil.copytree(self.real_time_dir, self.reconstruction_time_dir_path, dirs_exist_ok=True, symlinks=True)
 
-        return time_dir
 
     
     
