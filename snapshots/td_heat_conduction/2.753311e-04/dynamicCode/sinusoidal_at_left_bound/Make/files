@@ -1,6 +1,0 @@
-/* dynamicCode:
- * SHA1 = abd904e0242f0adb48be94f14273be958afdc09a
- */
-mixedFvPatchFieldTemplate.C
-
-LIB = $(PWD)/../platforms/$(WM_OPTIONS)/lib/libsinusoidal_at_left_bound_abd904e0242f0adb48be94f14273be958afdc09a
