@@ -3,8 +3,8 @@
 #run this file first to setup the directory
 # then run runNtimes file
 
-solution_space="../../snapshots/td_heat_conduction"
-base_dir="$solution_space/HeatPlateBoundaryTimeDependent"
+solution_space="../../OF_cases/td_heat_conduction"
+base_dir="$solution_space/template"
 file_dir="constant/transportProperties"
 
 while read DT; do

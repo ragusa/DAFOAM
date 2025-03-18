@@ -2,7 +2,7 @@
 
 # run this file to remove all the snapshots generated for different DT values
 
-solution_space="../../snapshots/td_heat_conduction"
+solution_space="../../OF_cases/td_heat_conduction"
 # file_dir="/constant/transportProperties"
 
 while read DT; do

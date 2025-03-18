@@ -2,7 +2,7 @@
 
 # first, run fix-space file
 
-solution_space="../../snapshots/td_heat_conduction"
+solution_space="../../OF_cases/td_heat_conduction"
 from_case_dir_to_base_dir="../../../src/bash" 
 
 
