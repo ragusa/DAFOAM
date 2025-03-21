@@ -1,23 +1,24 @@
 #!/bin/bash
 
-# run this file to remove all the snapshots generated for different DT values
+# run this file with the path to the set of openFoam cases directory
+# run this file to remove all the snapshots generated for different parameter values
 
-solution_space="../../OF_cases/td_heat_conduction"
-# file_dir="/constant/transportProperties"
+cases_dir=${1}
 
-while read DT; do
-	# if [[ ! -d "$DT" ]]; then	
-	#	cp -r "$base_dir" "$DT" 
-	# fi
-	# rm "./solution-space/$DT/constant/newTP"
+cases_dir="${cases_dir%/}"
+
+file_names_cases="${cases_dir}/names-cases.txt"
+
+while read nom; do
 	
-	if [[ -d "$solution_space/$DT" ]]; then	
-		rm -r "$solution_space/$DT" 
+	case_dir="${cases_dir}/${nom}"
+	if [[ -d "${case_dir}" ]]; then	
+		rm -r "${case_dir}" 
 	fi
 	
-done < $solution_space/DT_values
+done < ${file_names_cases}
 
-echo "Performed the Task"
+echo "Removed all snaps!"
 
 
 

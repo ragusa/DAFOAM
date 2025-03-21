@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # fix-space
-# Reads each line from cases-directory/names-cases.txt, converts spaces to underscores,
+# Reads each line from cases-directory/names-cases.txt
 # and copies the template directory to a new directory named after each case.
 
 set -e 
@@ -13,13 +13,13 @@ cases_dir=$1
 # Remove any trailing slash for consistency
 cases_dir="${cases_dir%/}"
 
-file_name_cases="${cases_dir}/names-cases.txt"
+file_names_cases="${cases_dir}/names-cases.txt"
 
 directory_template="${cases_dir}/template"
 
 # checks if name-cases.txt exists
 
-if [[ ! -f ${file_name_cases} ]]; then
+if [[ ! -f ${file_names_cases} ]]; then
   
    echo "Error: names-cases.txt not found in the specified directory."
    exit 1
@@ -28,24 +28,24 @@ fi
 # checks if the template directory exists
 
 if [[ ! -d ${directory_template} ]]; then
-   echo "Error: 'template' directory not found in the specified directory."
+
+  echo "Error: 'template' directory not found in the specified directory."
   exit 1
  
- fi
+fi
  
- while IFS= read -r line; do
+while read nom; do
  
-   [[ -z "$line" ]] && continue
+   [[ -z "${nom}" ]] && echo "names-cases.txt should have a single column with names having no whitespace characters" && exit 1
    
-   # replace spaces with underscores
    
-   new_case="${cases_dir}/$(echo "$line" | sed 's/ /_/g')"
+   new_case="${cases_dir}/${nom}"
    
    echo "Creating directory: $new_case"
    cp -r ${directory_template} ${new_case}
    
-done < ${file_name_cases}
+done < ${file_names_cases}
 
-echo "Performed the task!"
+echo "Cases created!"
  
  
