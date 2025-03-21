@@ -20,11 +20,12 @@ while read nom && read DT <&3; do
 
 	cd "${nom}"
 	foamDictionary ${file_of_concern} -entry DT -set ${DT}
+	blockMesh > case-blockmesh.log 2>&1
 	cd ../
 	
 done < ${file_names_cases}
 
-echo "Paramter Values Set! Ready for generating the snaps!"
+echo "Paramter Values Set! Mesh generated! Ready for generating the snaps!"
 
 
 
