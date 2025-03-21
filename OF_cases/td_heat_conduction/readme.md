@@ -1,1 +1,1 @@
-This directory holds the template case for the time dependent heat conduction. 
+This directory holds different variation of the time dependent heat conduction problem.
