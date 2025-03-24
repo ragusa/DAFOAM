@@ -1,3 +1,4 @@
-Under the subfolder in this directory, the python driver for each set of OF cases is hold.
+Under the `examples` folders, OpenFOAM cases data (and sometimes their generated solution snapshots) can be found.
+
 The contents in each subfolders is as follows:
-* [td_heat_conduction](./td_heat_conduction) contains the driver for time-dependent data-assimilation applied to heat conduction cases
+* [td_heat_conduction](./td_heat_conduction)  contains the case sets for the different variations of the time dependent heat conduction. 
