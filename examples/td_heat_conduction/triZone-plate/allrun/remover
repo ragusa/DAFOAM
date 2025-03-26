@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# run this file to remove all the snapshots generated for different parameter values
+
+cases_dir="../"
+
+cases_dir="${cases_dir%/}"
+
+file_names_cases="${cases_dir}/names-cases.txt"
+case_space="${cases_dir}/case_space"
+
+while read nom; do
+	
+	case_dir="${case_space}/${nom}"
+	if [[ -d "${case_dir}" ]]; then	
+		rm -r "${case_dir}" 
+	fi
+	
+done < ${file_names_cases}
+
+echo "Removed all snaps!"
+
+
+

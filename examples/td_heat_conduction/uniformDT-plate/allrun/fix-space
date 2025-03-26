@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# fix-space
+# Reads each line from ../names-cases.txt
+# and copies the template directory to a new directory named after each case.
+
+set -e 
+
+
+cases_dir=$1
+
+# Remove any trailing slash for consistency
+cases_dir="${cases_dir%/}"
+
+file_names_cases="${cases_dir}/names-cases.txt"
+
+directory_template="${cases_dir}/template"
+
+case_space="${cases_dir}/case_space"
+
+# checks if name-cases.txt exists
+
+if [[ ! -f ${file_names_cases} ]]; then
+  
+   echo "Error: names-cases.txt not found in the specified directory."
+   exit 1
+fi
+
+# checks if the template directory exists
+
+if [[ ! -d ${directory_template} ]]; then
+
+  echo "Error: 'template' directory not found in the specified directory."
+  exit 1
+ 
+fi
+
+if [[ ! -d ${case_space} ]]; then
+
+  mkdir ${case_space}
+ 
+fi
+
+ 
+while read nom; do
+ 
+   [[ -z "${nom}" ]] && echo "names-cases.txt should have a single column with names having no whitespace characters" && exit 1
+   
+   
+   new_case="${case_space}/${nom}"
+   
+   echo "Creating directory: $new_case"
+   cp -r ${directory_template} ${new_case}
+   
+done < ${file_names_cases}
+
+echo "Cases created!"
+ 
+ 
