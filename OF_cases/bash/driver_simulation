@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# run this file with the path to the set of openFoam cases directory
+
+# copy the template to create different cases
+source fix-space ${1}
+
+# change directory to the bash directory of the given cases-directory
+# then run the case-specific set-parameter-value script
+(
+   cd "${1}/bash"
+   ./set-parameter-value
+)
+
+# after the parameter values have been set run simulation for each case
+./runNtimes ${cases_dir} ${file_names_cases}
+
+
+
+
+

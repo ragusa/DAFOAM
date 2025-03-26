@@ -2,20 +2,21 @@
 
 # first, run fix-space file
 
-solution_space="../../OF_cases/td_heat_conduction"
-from_case_dir_to_base_dir="../../../src/bash" 
+cases_dir=${1}
+file_names_cases=${2}
+from_case_dir_to_base_dir=$(pwd) 
 
 
-while read DT; do
+while read nom; do
 	
-	case_dir="$solution_space/$DT"
+	case_dir="${cases_dir}/${nom}"
 	cd $case_dir
 	blockMesh > case-blockmesh.log 2>&1
 	laplacianFoam > case-run.log 2>&1
 	cd $from_case_dir_to_base_dir
-done < $solution_space/DT_values
+done < ${file_names_cases}
 
-echo "Performed the Task"
+echo "Snaps generated!"
 
 
 
