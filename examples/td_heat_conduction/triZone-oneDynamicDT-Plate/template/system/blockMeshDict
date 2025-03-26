@@ -1,0 +1,79 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+
+convertToMeters 1.0; // No scaling factor
+
+vertices
+(
+   (0 0 0)    // Vertex 0
+    (0.5 0 0)    // Vertex 1
+    (0.5 1 0)  // Vertex 2
+    (0 1 0)  // Vertex 3
+    (0 0 0.1)  // Vertex 4 (for 3D setup but will be empty)
+    (0.5 0 0.1)  // Vertex 5
+    (0.5 1 0.1)// Vertex 6
+    (0 1 0.1)// Vertex 7
+);
+
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) (50 100 1) simpleGrading (1 1 1) // 50 cells in x, 100 in y
+);
+
+edges
+(
+);
+
+boundary
+(
+    left
+    {
+        type patch;
+        faces
+        (
+            (0 4 7 3) // Left side (constant temperature)
+        );
+    }
+    right
+    {
+        type patch;
+        faces
+        (
+            (1 2 6 5) // Right side (constant temperature)
+        );
+    }
+    top
+    {
+        type patch;
+        faces
+        (
+            (2 3 7 6) // Top side (constant temperature)
+        );
+    }
+    bottom
+    {
+        type patch;
+        faces
+        (
+            (0 1 5 4) // Bottom side (heat flux boundary)
+        );
+    }
+    frontAndBack
+    {
+        type empty; // For 2D cases
+        faces
+        (
+            (0 1 2 3)
+            (4 5 6 7)
+        );
+    }
+);
+
+mergePatchPairs
+(
+);

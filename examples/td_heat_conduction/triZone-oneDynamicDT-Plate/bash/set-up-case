@@ -1,0 +1,35 @@
+#!/bin/bash
+
+#run this file first to setup the directory
+
+
+cd ../
+
+base_dir="template"
+file_of_concern="system/setFieldsDict"
+file_DT_values="./Data/DT_values"
+file_names_cases="names-cases.txt"
+case_space="./case_space"
+
+# Open file_DT_values on file descriptor 3
+exec 3< "$file_DT_values"
+
+while read nom && read DT <&3; do
+	if [[ ! -d "${case_space}/${nom}" ]]; then
+    	    cp -r "${base_dir}" "${case_space}/${nom}"
+    	    echo "copying"
+	fi
+	(
+	    cd "${case_space}/${nom}"
+	    sed -i "s/volScalarFieldValue DT 0.04/volScalarFieldValue DT ${DT}/g" ${file_of_concern}
+	    
+	    blockMesh > case-blockmesh.log 2>&1
+	    setFields > case-setFields.log 2>&1
+	)
+	
+done < ${file_names_cases}
+
+echo "Paramter Values Set! Ready for generating the snaps!"
+
+
+
