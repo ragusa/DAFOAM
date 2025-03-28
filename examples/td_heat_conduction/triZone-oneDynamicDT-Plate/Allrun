@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# ensure that the script exits immediately if a command within exits with a non-zero status
+
+set -e
+
+set-up-case(){
+
+    file_of_concern="./system/setFieldsDict"    
+    DT="${1}"
+    if [[ ! -f "${file_of_concern}" ]]; then
+        echo "${file_of_concern} doesn't exist"
+        exit 1
+    fi
+     
+    sed -i "s/volScalarFieldValue DT 0.04/volScalarFieldValue DT ${DT}/g" ${file_of_concern}
+    return
+}
+
+#define the Data file
+DataFile="./Data/data.csv"
+
+# define the directory where different cases are kept
+case_space="./case_space"
+
+# define the template directory
+
+directory_template="./template"
+
+#check if DataFile exists
+if [[ ! -f "${DataFile}" ]]; then
+    echo "Error: ./Data/data.csv doesn't exist or can't be accessed"
+    exit 1
+fi
+
+# checks if the template directory exists
+
+if [[ ! -d ${directory_template} ]]; then
+
+  echo "Error: 'template' directory not found in the specified directory."
+  exit 1
+fi
+
+if [[ ! -d ${case_space} ]]; then
+
+  mkdir ${case_space}
+ 
+fi
+
+#read the header line
+
+#header=$(head -1 "${DataFile}")
+#echo "Header: ${header}"
+
+
+# read data row by row
+
+tail -n +2 "${DataFile}" | while IFS=, read -r caseName DT
+
+do 
+    echo "Case Name: ${caseName}, DT: ${DT}"
+    new_case="${case_space}/${caseName}"
+   
+    cp -r ${directory_template} ${new_case}
+    echo "Directory Created: $new_case"
+    
+    (
+        cd ${new_case}
+        set-up-case "${DT}"
+        echo "Case has been set up."
+        blockMesh > case-blockmesh.log 2>&1
+        echo "Mesh has been set up."
+        setFields > case-setFields.log 2>&1
+        applicationName=$(foamDictionary -entry application -value system/controlDict)
+	${applicationName} > case-run.log 2>&1
+    	echo "simulation done in ${new_case}"
+    )
+    
+    
+    
+done
