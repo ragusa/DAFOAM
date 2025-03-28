@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Use this script to run all cases in the subdirectories
+
+find . -mindepth 2 -type f -name "Allrun" -execdir bash -c 'echo "Running: $(pwd)"; ./Allrun' \; > Allrun.log 2>&1

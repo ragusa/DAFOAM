@@ -6,4 +6,7 @@ This directory contains case sets for transient heat conduction simulations, alo
 
 - **[triZone-oneDynamicDT-plate](./triZone-plate)**: This case set details an OpenFOAM simulation of a heat plate divided into three zones, where two zones maintain uniform thermal diffusivity (DT), while the third exhibits a time-dependent DT. 
 
+- **[Allrun](Allrun)**: runs all the `Allrun` scripts inside the child directories(depth 2).
+- **[Allclean](Allclean)**: runs all the `Allclean` scripts inside the child directories (depth 2).
+
 

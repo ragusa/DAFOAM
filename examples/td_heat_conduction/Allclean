@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Use this script to run all 'Allclean' in the subdirectories
+
+find . -mindepth 2 -maxdepth 2 -type f -name "Allclean" -execdir bash -c 'echo "Cleaning: $(pwd)"; ./Allclean' \; > Allclean.log 2>&1
