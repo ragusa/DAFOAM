@@ -1,0 +1,101 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2406                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+FoamFile
+{
+    version         2;
+    format          ascii;
+    class           dictionary;
+    object          controlDict;
+}
+
+application     laplacianFoam;
+
+startFrom       startTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         500;
+
+deltaT          1;
+
+writeControl    runTime;
+
+writeInterval   5;
+
+purgeWrite      0;
+
+writeFormat     ascii;
+
+writePrecision  6;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   6;
+
+runTimeModifiable true;
+
+
+functions
+{
+    updateDiffusivity
+    {
+        type            coded;
+        libs            (utilityFunctionObjects);
+        
+        name            updateDiffusivity;
+        
+        codeExecute
+        #{
+            // Get current time
+            const scalar currentTime = mesh().time().value();
+            //const scalar DT_initbox1 = 0.04; 
+            const scalar DT_initbox2 = 0.0004;
+            
+            // Get access to the DT field
+            volScalarField& DT = const_cast<volScalarField&>
+            (
+                mesh().lookupObject<volScalarField>("DT")
+            );
+            
+            // Define box region (must match setFieldsDict)
+            const vector min(0.1, 0.7, 0);
+            const vector max(0.3, 0.9, 0.1);
+            
+            // Loop through all cells
+            forAll(DT, cellI)
+            {
+                const point& cellCenter = mesh().C()[cellI];
+                
+                // Check if the cell is within the second box
+                if (cellCenter.x() >= min.x() && cellCenter.x() <= max.x() &&
+                    cellCenter.y() >= min.y() && cellCenter.y() <= max.y() &&
+                    cellCenter.z() >= min.z() && cellCenter.z() <= max.z())
+                {
+                    // Apply time-dependent function: f(t) = 4t
+                    DT[cellI] = 4.0 * DT_initbox2 * currentTime;
+                }
+            }
+            
+            DT.correctBoundaryConditions();
+        #};
+        
+        // Execute this function on every time step
+        executeControl  timeStep;
+        executeInterval 1;
+        writeControl    writeTime; //timeStep;
+        //writeInterval   1;
+    }
+}
+
+
+// ************************************************************************* //
