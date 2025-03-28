@@ -1,4 +1,5 @@
 #!/bin/bash
+#prepared by Mahmudul Hasan Tamim (mht@tamu.edu)
 
 # ensure that the script exits immediately if a command within exits with a non-zero status
 
