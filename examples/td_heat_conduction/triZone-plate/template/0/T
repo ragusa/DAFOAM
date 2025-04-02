@@ -28,13 +28,13 @@ boundaryField
             const scalar frequency = 1;  // Frequency in 1/m
 	    const scalar freq_t = 0.01;
             const fvPatch& boundaryPatch = patch();
-            scalarField& joe = this->refGrad();
+            scalarField& boundaryHeatFlux = this->refGrad();
             const scalar t=this->db().time().value();
 
             forAll(boundaryPatch, faceI)
             {
                 // Use Cf() to get the face center coordinates and apply sinusoidal gradient
-                joe[faceI] = amplitude * Foam::sin(Foam::constant::mathematical::pi * t * freq_t )* Foam::sin(Foam::constant::mathematical::pi * frequency * boundaryPatch.Cf()[faceI].y());
+                boundaryHeatFlux[faceI] = amplitude * Foam::sin(Foam::constant::mathematical::pi * t * freq_t )* Foam::sin(Foam::constant::mathematical::pi * frequency * boundaryPatch.Cf()[faceI].y());
             }
         #};
     
