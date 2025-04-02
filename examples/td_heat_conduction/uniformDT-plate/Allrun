@@ -1,9 +1,6 @@
 #!/bin/bash
 
-#prepared by Mahmudul Hasan Tamim (mht@tamu.edu)
-
 # ensure that the script exits immediately if a command within exits with a non-zero status
-
 set -e
 
 set-up-case(){
@@ -26,7 +23,7 @@ DataFile="./Data/data.csv"
 case_space="./case_space"
 
 # define the template directory
-
+# this is the root case upon which all other cases in the ./case_space directory are based
 directory_template="./template"
 
 #check if DataFile exists
@@ -36,33 +33,22 @@ if [[ ! -f "${DataFile}" ]]; then
 fi
 
 # checks if the template directory exists
-
 if [[ ! -d ${directory_template} ]]; then
-
   echo "Error: 'template' directory not found in the specified directory."
   exit 1
 fi
 
 if [[ ! -d ${case_space} ]]; then
-
   mkdir ${case_space}
- 
 fi
-
-#read the header line
-
-#header=$(head -1 "${DataFile}")
-#echo "Header: ${header}"
 
 
 # read data row by row
-
 tail -n +2 "${DataFile}" | while IFS=, read -r caseName DT
 
 do 
     echo "Case Name: ${caseName}, DT: ${DT}"
     new_case="${case_space}/${caseName}"
-   
    
     cp -r ${directory_template} ${new_case}
     echo "Directory Created: $new_case"
@@ -76,9 +62,6 @@ do
         applicationName=$(foamDictionary -entry application -value system/controlDict)
 	${applicationName} > case-run.log 2>&1
 	echo "simulation done in ${new_case}."
-    
-    )
-    
-    
+    )   
     
 done
