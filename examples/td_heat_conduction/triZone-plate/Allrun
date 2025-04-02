@@ -23,6 +23,7 @@ DataFile="./Data/data.csv"
 case_space="./case_space"
 
 # define the template directory
+# this is the root case upon which all other cases in the ./case_space directory are based
 directory_template="./template"
 
 #check if DataFile exists
