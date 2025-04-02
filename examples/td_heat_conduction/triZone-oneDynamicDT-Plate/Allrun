@@ -1,5 +1,7 @@
 #!/bin/bash
 
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions
+
 # ensure that the script exits immediately if a command within exits with a non-zero status
 set -e
 
@@ -59,8 +61,7 @@ do
         blockMesh > case-blockmesh.log 2>&1
         echo "Mesh has been set up."
         setFields > case-setFields.log 2>&1
-        applicationName=$(foamDictionary -entry application -value system/controlDict)
-	${applicationName} > case-run.log 2>&1
+        $(getApplication) > case-run.log 2>&1
     	echo "simulation done in ${new_case}"
     )
     

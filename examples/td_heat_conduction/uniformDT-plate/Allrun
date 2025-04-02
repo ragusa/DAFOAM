@@ -3,6 +3,8 @@
 # ensure that the script exits immediately if a command within exits with a non-zero status
 set -e
 
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions
+
 set-up-case(){
 
     file_of_concern="./constant/transportProperties"    
@@ -59,8 +61,7 @@ do
         echo "Case has been set up."
         blockMesh > case-blockmesh.log 2>&1
         echo "Mesh has been set up."
-        applicationName=$(foamDictionary -entry application -value system/controlDict)
-	${applicationName} > case-run.log 2>&1
+        $(getApplication) > case-run.log 2>&1
 	echo "simulation done in ${new_case}."
     )   
     
