@@ -1,5 +1,10 @@
 #!/bin/bash
 
-# Use this script to run all 'Allclean' in the subdirectories
+#!/bin/bash
 
-find . -mindepth 2 -maxdepth 2 -type f -name "Allclean" -execdir bash -c 'echo "Cleaning: $(pwd)"; ./Allclean' \; > Allclean.log 2>&1
+# Remove all case spaces
+echo "Removing case spaces..."
+rm -r */case_space > /dev/null 2>&1
+
+
+echo "Done!"
