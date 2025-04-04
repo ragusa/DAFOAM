@@ -1,0 +1,1 @@
+This directory contains case sets for **[2D Molten Salt Fast Reactor](https://gitlab.com/foam-for-nuclear/GeN-Foam/-/tree/master/Tutorials/reactorCases/2D_MSFR)** simulations, along with illustrative examples of various Data Assimilation (DA) algorithms applied to these cases.
