@@ -1,0 +1,67 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      T;
+}
+
+dimensions      [0 0 0 1 0 0 0]; // Temperature in Kelvin
+
+internalField   uniform 300; // Initial temperature in the domain
+
+boundaryField
+{
+
+    left
+    {	
+    
+        type            codedMixed;
+        name sinusoidal_at_left_bound;
+        refValue        uniform 300; // Reference value (ignored with valueFraction = 0)
+        refGradient     uniform 0;   // Reference gradient for Neumann part
+        valueFraction   uniform 0;   // Fully Neumann (gradient-based) boundary condition
+
+        code
+        #{
+            const scalar amplitude = 1000;  // Amplitude of the sinusoidal gradient (in K/m)
+            const scalar frequency = 1;  // Frequency in 1/m
+	    const scalar freq_t = 0.01;
+            const fvPatch& boundaryPatch = patch();
+            scalarField& boundaryHeatFlux = this->refGrad();
+            const scalar t=this->db().time().value();
+
+            forAll(boundaryPatch, faceI)
+            {
+                // Use Cf() to get the face center coordinates and apply sinusoidal gradient
+                boundaryHeatFlux[faceI] = amplitude * Foam::sin(Foam::constant::mathematical::pi * t * freq_t )* Foam::sin(Foam::constant::mathematical::pi * frequency * boundaryPatch.Cf()[faceI].y());
+            }
+        #};
+    
+        
+    }
+
+    right
+    {
+        type fixedValue;
+        value uniform 300; // Constant temperature on the right side
+    }
+
+    top
+    {
+        type fixedValue;
+        value uniform 300; // Constant temperature on the top side
+    }
+
+    bottom
+    {
+        type fixedValue;
+        value uniform 300; // Constant temperature on the bottom side
+    }
+
+    frontAndBack
+    {
+        type empty; // For 2D cases
+    }
+}
+

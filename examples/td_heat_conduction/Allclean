@@ -1,0 +1,10 @@
+#!/bin/bash
+
+#!/bin/bash
+
+# Remove all case spaces
+echo "Removing case spaces..."
+rm -r */case_space > /dev/null 2>&1
+
+
+echo "Done!"

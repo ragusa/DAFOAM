@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# ensure that the script exits immediately if a command within exits with a non-zero status
+set -e
+
+# define the directory where different cases are kept
+case_space="./case_space"
+
+if [[ -d "${case_space}" ]]; then
+    rm -r "${case_space}"
+    echo "Deleted case_space"
+else
+   echo "${case_space} doesn't exist."
+fi
+
+
+

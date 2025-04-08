@@ -1,1 +1,1 @@
-This subfolder contains the bash scripts
+This subfolder contains the bash scripts.
