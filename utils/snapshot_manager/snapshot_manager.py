@@ -11,8 +11,8 @@ class Snapshot_manager:
         self,
         source_directory,
         symlinked_cases_directory,
-        geim_offline_directory,
-        geim_online_directory,
+        offline_directory,
+        online_directory,
         case_fraction_min,
         snap_fraction_per_case_min,
     ):
@@ -22,13 +22,13 @@ class Snapshot_manager:
         if os.path.exists(self.symlinked_cases_directory):
             shutil.rmtree(self.symlinked_cases_directory)
 
-        self.geim_offline_directory = geim_offline_directory
-        if os.path.exists(self.geim_offline_directory):
-            shutil.rmtree(self.geim_offline_directory)
+        self.offline_directory = offline_directory
+        if os.path.exists(self.offline_directory):
+            shutil.rmtree(self.offline_directory)
 
-        self.geim_online_directory = geim_online_directory
-        if os.path.exists(self.geim_online_directory):
-            shutil.rmtree(self.geim_online_directory)
+        self.online_directory = online_directory
+        if os.path.exists(self.online_directory):
+            shutil.rmtree(self.online_directory)
 
         self.case_fraction_min = case_fraction_min
         self.snap_fraction_per_case_min = snap_fraction_per_case_min
@@ -216,12 +216,12 @@ class Snapshot_manager:
         if os.path.exists(zero_dir_in_virtual_OpenFoam_directory):
             shutil.rmtree(zero_dir_in_virtual_OpenFoam_directory)
 
-        # create directories in the virtual OF directory for GEIM
+        # create directories in the virtual OF directory for the application of an Algorithm
         os.makedirs(zero_dir_in_virtual_OpenFoam_directory, exist_ok=True)
         os.makedirs(constant_dir_in_virtual_OpenFoam_directory, exist_ok=True)
         os.makedirs(system_dir_in_virtual_OpenFoam_directory, exist_ok=True)
 
-        # copy the directory to the virtual OF directory for GEIM
+        # copy the directory to the virtual OF directory
         shutil.copytree(
             system_dir_in_case_dir,
             system_dir_in_virtual_OpenFoam_directory,
@@ -241,22 +241,18 @@ class Snapshot_manager:
             symlinks=True,
         )
 
-    def make_dir_in_geim_offline_directory(self, case, time_step):
-        # create time directory name
-        index_case = self.list_cases.index(case)
-        str_index_case = str(index_case)
-        structured_str_index_case = str_index_case.zfill(6)
-        dir_name = time_step + structured_str_index_case
+    def make_dir_in_virtual_OpenFoam_directory(self, name_virtual_OF_directory, case, time_step):
+        # create directory structure
+        dir_name = case +'/' + time_step 
         # construct the path
-        dir_path = os.path.join(self.geim_offline_directory, dir_name)
+        dir_path = os.path.join(name_virtual_OF_directory, dir_name)
         # make the directory
         os.makedirs(dir_path, exist_ok=True)
 
-        return dir_path, dir_name
+        return dir_path
 
-    def copy_chosen_time_steps_to_virtual_OF_directory_for_geim(self):
+    def copy_chosen_time_steps_to_virtual_OF_directory_offline(self):
         # loop over the dictionary
-        self.time_directory_name_in_geim_offline_directory = []
         for key, value in self.chosen_time_steps_for_each_chosen_case.items():
             for t_step in value:
                 # construct the source directory path to copy from
@@ -264,10 +260,8 @@ class Snapshot_manager:
                     self.symlinked_cases_directory, key, t_step
                 )
                 # construct the taget directory path to copy to
-                target_dir_path, target_dir_name = self.make_dir_in_geim_offline_directory(
-                    key, t_step
-                )
-                self.time_directory_name_in_geim_offline_directory.append(target_dir_name)
+                target_dir_path = self.make_dir_in_virtual_OpenFoam_directory(self.offline_directory, key, t_step)
+                
                 # copy the directory with symlinks
                 shutil.copytree(
                     source_dir_path, target_dir_path, dirs_exist_ok=True, symlinks=True
@@ -283,34 +277,20 @@ class Snapshot_manager:
         self.randomly_choose_cases()
         self.randomly_choose_time_steps()
 
-        #set a virtual OpenFoam directory for GEIM Offline
-        self.set_virtual_OpenFoam_directory(self.geim_offline_directory)
-        self.copy_chosen_time_steps_to_virtual_OF_directory_for_geim()
+        #set a virtual OpenFoam directory for Offline
+        self.set_virtual_OpenFoam_directory(self.offline_directory)
+        self.copy_chosen_time_steps_to_virtual_OF_directory_offline()
 
-        #set a virtual OpenFoam directory for GEIM Online
-        self.set_virtual_OpenFoam_directory(self.geim_online_directory)
-
-    # for user
-    def make_dir_in_geim_online_directory(self, case, time_step):
-        # create time directory name
-        index_case = self.list_cases.index(case)
-        str_index_case = str(index_case)
-        structured_str_index_case = str_index_case.zfill(6)
-        self.geim_online_time_dir_name = time_step + structured_str_index_case
-        # construct the path
-        self.geim_online_time_dir_path = os.path.join(
-            self.geim_online_directory, self.geim_online_time_dir_name
-        )
-        # make the directory
-        os.makedirs(self.geim_online_time_dir_path, exist_ok=True)
+        #set a virtual OpenFoam directory for Online
+        self.set_virtual_OpenFoam_directory(self.online_directory)
 
     # for user
-    def copy_a_snap_to_the_geim_online_directory(self, OF_case, time_step):
+    def copy_a_snap_to_the_online_directory(self, dir_path, OF_case, time_step):
         self.real_cs_dir = os.path.join(self.symlinked_cases_directory, OF_case)
         self.real_time_dir = os.path.join(self.real_cs_dir, time_step)
         shutil.copytree(
             self.real_time_dir,
-            self.geim_online_time_dir_path,
+            dir_path,
             dirs_exist_ok=True,
             symlinks=True,
         )
@@ -320,13 +300,13 @@ if __name__ == "__main__":
     import argparse
     
     # Set up command line argument parsing
-    parser = argparse.ArgumentParser(description='Manage OpenFOAM case snapshots for GEIM')
+    parser = argparse.ArgumentParser(description='Manage OpenFOAM case snapshots for the Application of Data Assimilation Algorithms')
     parser.add_argument('--source', required=True, help='Source directory containing OpenFOAM cases')
     parser.add_argument('--symlinked', default='symlinked_cases', help='Directory for symlinked cases')
-    parser.add_argument('--geim', default='geim_offline_directory', help='Directory for GEIM offline')
-    parser.add_argument('--recon', default='geim_online_directory', help='Directory for GEIM online')
-    parser.add_argument('--case-fraction', type=float, default=0.7, help='Minimum fraction of cases to use')
-    parser.add_argument('--snap-fraction', type=float, default=0.8, help='Minimum fraction of snapshots per case to use')
+    parser.add_argument('--offline', default='offline_directory', help='Directory for offline application of the algorithm')
+    parser.add_argument('--online', default='online_directory', help='Directory for online application of the algorithm')
+    parser.add_argument('--case_fraction', type=float, default=0.7, help='Minimum fraction of cases to use')
+    parser.add_argument('--snap_fraction', type=float, default=0.8, help='Minimum fraction of snapshots per case to use')
     
     args = parser.parse_args()
     
@@ -334,14 +314,23 @@ if __name__ == "__main__":
     sm = Snapshot_manager(
         source_directory=args.source,
         symlinked_cases_directory=args.symlinked,
-        geim_offline_directory=args.geim,
-        geim_online_directory=args.recon,
+        offline_directory=args.offline,
+        online_directory=args.online,
         case_fraction_min=args.case_fraction,
         snap_fraction_per_case_min=args.snap_fraction
     )
     
     # Set up the environment
-    print("Setting up environment...")
     sm.set_environment_random()
     print(f"Selected {len(sm.chosen_cases)} cases out of {sm.Ncases}")
+
+
+    # Setting up a test case
+    firs_case = list(sm.unchosen_time_steps_for_each_chosen_case.keys())[0]
+    time_step = sm.unchosen_time_steps_for_each_chosen_case[firs_case][0]
+
+    dir_path = sm.make_dir_in_virtual_OpenFoam_directory(sm.online_directory, firs_case, time_step)
+    sm.copy_a_snap_to_the_online_directory(dir_path, firs_case, time_step)
+
+
     
