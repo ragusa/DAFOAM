@@ -38,7 +38,7 @@ class Snapshot_manager:
         self.snap_fraction_per_case_min = snap_fraction_per_case_min
         self.file_name_chosen_time_steps = file_name_chosen_time_steps
 
-    def replicate_directory_structure(self):
+    def _replicate_directory_structure(self):
         for root, dirs, files in os.walk(self.source_directory):
             # Create corresponding directories in the target location
             for dir in dirs:
@@ -48,7 +48,7 @@ class Snapshot_manager:
                 )
                 os.makedirs(target_path, exist_ok=True)
 
-    def create_symlinks_of_files_to_the_files_in_original_directory(self):
+    def _create_symlinks_of_files_to_the_files_in_original_directory(self):
         for root, dirs, files in os.walk(self.source_directory):
             for file in files:
                 # Build the full path of the file in the source directory
@@ -61,7 +61,7 @@ class Snapshot_manager:
                 if not os.path.exists(target_file):
                     os.symlink(source_file, target_file)
 
-    def is_numeric(self, value):
+    def _is_numeric(self, value):
         try:
             # Attempt to convert to a float
             float(value)
@@ -71,14 +71,14 @@ class Snapshot_manager:
             # Conversion fails if the value is not numeric
             return False
 
-    def list_cases_in_symlinked_directory(self):
+    def _list_cases_in_symlinked_directory(self):
         # list directory
-        self.list_dirs = os.listdir(self.symlinked_cases_directory)
+        self._list_dirs = os.listdir(self.symlinked_cases_directory)
         # list cases
         self.list_cases = [
             k
-            for k in self.list_dirs
-            if self.is_numeric(k)
+            for k in self._list_dirs
+            if self._is_numeric(k)
             and os.path.isdir(os.path.join(self.symlinked_cases_directory, k))
         ]
         # sort them according to the numeric value (assuming case name is numeric string)
@@ -88,9 +88,9 @@ class Snapshot_manager:
         file_name = "case_list.csv"
         data = self.list_cases
         col_head_list = ["case"]
-        self.write_in_a_CSV(file_name, data, col_head_list)
+        self._write_in_a_CSV(file_name, data, col_head_list)
 
-    def build_dict_time_steps_for_each_case(self):
+    def _build_dict_time_steps_for_each_case(self):
         # initialize
         self.time_steps_for_each_case = {}
         self.Ntime_steps_each_case = {}
@@ -118,9 +118,9 @@ class Snapshot_manager:
 
         file_name = "time_steps_each_case.csv"
         col_head_list = ["case", "time_steps", "Ntime_steps"]
-        self.write_in_a_CSV(file_name, data, col_head_list)
+        self._write_in_a_CSV(file_name, data, col_head_list)
 
-    def write_in_a_CSV(self, file_name, data, col_head_list):
+    def _write_in_a_CSV(self, file_name, data, col_head_list):
         with open(file_name, "w", newline="") as csvfile:
             # create an instance of a writer object
             csv_writer = csv.writer(csvfile)
@@ -129,7 +129,7 @@ class Snapshot_manager:
             for unit in data:
                 csv_writer.writerow(unit)
 
-    def randomly_choose_cases(self):
+    def _randomly_choose_cases(self):
         # determine the number of chosen cases
         self.Nchosen_cases = int(np.ceil(self.case_fraction_min * self.Ncases))
         # randomly sample the cases
@@ -139,11 +139,11 @@ class Snapshot_manager:
         file_name_chosen_case = "chosen_cases.csv"
         data_chosen_case = self.chosen_cases
         col_head_list_chosen_case = ["Chosen_Case"]
-        self.write_in_a_CSV(
+        self._write_in_a_CSV(
             file_name_chosen_case, data_chosen_case, col_head_list_chosen_case
         )
 
-    def determine_unchosen_cases(self):
+    def _determine_unchosen_cases(self):
         # create list of the unchosen cases
         chosen_set = set(self.chosen_cases)
         self.unchosen_cases = [
@@ -153,11 +153,11 @@ class Snapshot_manager:
         file_name_unchosen_case = "unchosen_cases.csv"
         data_unchosen_case = self.unchosen_cases
         col_head_list_unchosen_case = ["Unchosen_Case"]
-        self.write_in_a_CSV(
+        self._write_in_a_CSV(
             file_name_unchosen_case, data_unchosen_case, col_head_list_unchosen_case
         )
 
-    def randomly_choose_time_steps(self):
+    def _randomly_choose_time_steps(self):
         # initialize dictionaries
         self.Nchosen_time_steps_for_each_chosen_case = {}
         self.chosen_time_steps_for_each_chosen_case = {}
@@ -192,9 +192,9 @@ class Snapshot_manager:
 
         file_name_chosen = "chosen_time_steps_each_case.csv"
         col_head_list = ["case", "time_steps", "Ntime_steps"]
-        self.write_in_a_CSV(file_name_chosen, data_chosen_time_steps, col_head_list)
+        self._write_in_a_CSV(file_name_chosen, data_chosen_time_steps, col_head_list)
 
-    def determine_unchosen_time_steps(self):
+    def _determine_unchosen_time_steps(self):
         # initialize
         self.unchosen_time_steps_for_each_chosen_case = {}
         # to save in a csv file
@@ -224,9 +224,9 @@ class Snapshot_manager:
 
         file_name_unchosen = "unchosen_time_steps_each_case.csv"
         col_head_list = ["case", "time_steps", "Ntime_steps"]
-        self.write_in_a_CSV(file_name_unchosen, data_unchosen_time_steps, col_head_list)
+        self._write_in_a_CSV(file_name_unchosen, data_unchosen_time_steps, col_head_list)
 
-    def set_virtual_OpenFoam_directory(self, directory_path):
+    def _set_virtual_OpenFoam_directory(self, directory_path):
         # select a case, it could be random
         cs = self.chosen_cases[0]
         case_dir = os.path.join(self.symlinked_cases_directory, cs)
@@ -288,7 +288,7 @@ class Snapshot_manager:
 
         return dir_path
 
-    def copy_chosen_time_steps_to_virtual_OF_directory_offline(self):
+    def _copy_chosen_time_steps_to_virtual_OF_directory_offline(self):
         # loop over the dictionary
         for key, value in self.chosen_time_steps_for_each_chosen_case.items():
             for t_step in value:
@@ -306,7 +306,7 @@ class Snapshot_manager:
                     source_dir_path, target_dir_path, dirs_exist_ok=True, symlinks=True
                 )
 
-    def parse_time_steps_from_file_chosen_time_steps(self):
+    def _parse_time_steps_from_file_chosen_time_steps(self):
         # initialize
         self.Nchosen_time_steps_for_each_chosen_case = {}
         self.chosen_time_steps_for_each_chosen_case = {}
@@ -343,11 +343,11 @@ class Snapshot_manager:
 
     def set_environment(self):
         # it is random because the cases and snaps are selected randomly
-        self.replicate_directory_structure()
-        self.create_symlinks_of_files_to_the_files_in_original_directory()
-        self.list_cases_in_symlinked_directory()
+        self._replicate_directory_structure()
+        self._create_symlinks_of_files_to_the_files_in_original_directory()
+        self._list_cases_in_symlinked_directory()
 
-        self.build_dict_time_steps_for_each_case()
+        self._build_dict_time_steps_for_each_case()
 
         if self.file_name_chosen_time_steps is not None:
             self.file_path_chosen_time_steps = os.path.join(
@@ -355,27 +355,26 @@ class Snapshot_manager:
             )
             if os.path.exists(self.file_path_chosen_time_steps):
                 if os.path.isfile(self.file_path_chosen_time_steps):
-                    self.parse_time_steps_from_file_chosen_time_steps()
-                    self.determine_unchosen_cases()
-                    self.determine_unchosen_time_steps()
+                    self._parse_time_steps_from_file_chosen_time_steps()
+                    self._determine_unchosen_cases()
+                    self._determine_unchosen_time_steps()
                 else:
                     raise FileNotFoundError("There is no file of the given file name.")
             else:
                 raise FileNotFoundError("File does not exist.")
         else:
-            self.randomly_choose_cases()
-            self.determine_unchosen_cases()
-            self.randomly_choose_time_steps()
-            self.determine_unchosen_time_steps()
+            self._randomly_choose_cases()
+            self._determine_unchosen_cases()
+            self._randomly_choose_time_steps()
+            self._determine_unchosen_time_steps()
 
         # set a virtual OpenFoam directory for Offline
-        self.set_virtual_OpenFoam_directory(self.offline_directory)
-        self.copy_chosen_time_steps_to_virtual_OF_directory_offline()
+        self._set_virtual_OpenFoam_directory(self.offline_directory)
+        self._copy_chosen_time_steps_to_virtual_OF_directory_offline()
 
         # set a virtual OpenFoam directory for Online
-        self.set_virtual_OpenFoam_directory(self.online_directory)
+        self._set_virtual_OpenFoam_directory(self.online_directory)
 
-    # for user
     def copy_a_snap_to_the_online_directory(self, dir_path, OF_case, time_step):
         self.real_cs_dir = os.path.join(self.symlinked_cases_directory, OF_case)
         self.real_time_dir = os.path.join(self.real_cs_dir, time_step)
