@@ -3,6 +3,7 @@ import os
 import numpy as np
 import random
 import csv
+from pathlib import Path
 
 
 class Snapshot_manager:
@@ -64,8 +65,14 @@ class Snapshot_manager:
             file_name_chosen_time_steps (str, optional): File name with prespecidied time steps for testing
         """
         # it is assumed that in the source directory which holds the cases, the cases are named numerically with unique name each
-        self.source_directory = source_directory
-        self.project_directory = project_directory
+        if Path(source_directory).is_absolute() and Path(source_directory).exists():
+            self.source_directory = source_directory
+        else:
+            raise ValueError("Provide a correct absolute path to the source directory")
+        if Path(project_directory).is_absolute() and Path(project_directory).exists():   
+            self.project_directory = project_directory
+        else:
+            raise ValueError("Provide a correct absolute path to the project directory")
         self.symlinked_cases_directory = os.path.join(
             project_directory, "symlinked_cases"
         )
@@ -553,6 +560,7 @@ class Snapshot_manager:
 
 if __name__ == "__main__":
     import argparse
+    current_dir = os.path.abspath(".")
 
     # Set up command line argument parsing
     parser = argparse.ArgumentParser(
@@ -563,7 +571,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--project_directory",
-        default=".",
+        default=current_dir,
         help="Directory for the DA algorithm to be applied",
     )
     parser.add_argument(
@@ -598,8 +606,8 @@ if __name__ == "__main__":
     print(f"Selected {len(sm.chosen_cases)} cases out of {sm.Ncases}")
 
     # Set up a test case
-    firs_case = list(sm.unchosen_time_steps_for_each_chosen_case.keys())[0]
-    time_step = sm.unchosen_time_steps_for_each_chosen_case[firs_case][0]
+    first_case = list(sm.unchosen_time_steps_for_each_chosen_case.keys())[0]
+    time_step = sm.unchosen_time_steps_for_each_chosen_case[first_case][0]
 
     dir_path = sm.make_dir_in_virtual_OpenFoam_directory(
         sm.online_directory, firs_case, time_step
