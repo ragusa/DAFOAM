@@ -163,7 +163,7 @@ class Snapshot_manager:
         # Number of cases
         self.Ncases = len(self.list_cases)
         file_name = "case_list.csv"
-        data = self.list_cases
+        data = [[case] for case in self.list_cases]
         col_head_list = ["case"]
         self._write_in_a_CSV(file_name, data, col_head_list)
 
@@ -234,7 +234,7 @@ class Snapshot_manager:
 
         # save chosen cases in a csv file
         file_name_chosen_case = "chosen_cases.csv"
-        data_chosen_case = self.chosen_cases
+        data_chosen_case = [[case] for case in self.chosen_cases]
         col_head_list_chosen_case = ["Chosen_Case"]
         self._write_in_a_CSV(
             file_name_chosen_case, data_chosen_case, col_head_list_chosen_case
@@ -254,7 +254,7 @@ class Snapshot_manager:
         ]
         # save unchosen cases in a csv file
         file_name_unchosen_case = "unchosen_cases.csv"
-        data_unchosen_case = self.unchosen_cases
+        data_unchosen_case = [[case] for case in self.unchosen_cases]
         col_head_list_unchosen_case = ["Unchosen_Case"]
         self._write_in_a_CSV(
             file_name_unchosen_case, data_unchosen_case, col_head_list_unchosen_case
