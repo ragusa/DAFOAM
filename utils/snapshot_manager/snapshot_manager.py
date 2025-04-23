@@ -7,44 +7,6 @@ from pathlib import Path
 
 
 class Snapshot_manager:
-    """
-    Manages OpenFOAM case snapshots for data assimilation algorithms.
-    
-    This class handles the organization of OpenFOAM simulation cases and time steps,
-    creating appropriate directory structures with symlinks to original data.
-    It supports random selection of cases and time steps for offline training
-    and online testing/application phases.
-    
-    Attributes:
-        # Input attributes
-        source_directory (str): Path to directory containing OpenFOAM cases
-        project_directory (str): Path to directory for the DA algorithm application
-        case_fraction_min (float): Minimum fraction of cases to use
-        snap_fraction_per_case_min (float): Minimum fraction of snapshots per case to use
-        file_name_chosen_time_steps (str, optional): File name with prespecified time steps for training of a DA algorithm
-        
-        # Derived attributes (created during initialization)
-        symlinked_cases_directory (str): Path to directory with symlinked cases
-        offline_directory (str): Path to directory for offline phase of the application of the DA algorithm
-        online_directory (str): Path to directory for online phase data of the application of the DA algorithm
-        
-        # Runtime attributes (created during operation)
-        list_cases (list): List of all numerical case names found in the symlinked directory
-        Ncases (int): Total number of cases found
-        time_steps_for_each_case (dict): Dictionary mapping case names to their time steps
-        Ntime_steps_each_case (dict): Dictionary mapping case names to number of time steps available
-        chosen_cases (list): List of cases selected for training
-        unchosen_cases (list): List of cases not selected for training
-        Nchosen_cases (int): Number of selected cases
-        chosen_time_steps_for_each_chosen_case (dict): Dictionary mapping chosen cases to their selected time steps
-        Nchosen_time_steps_for_each_chosen_case (dict): Dictionary mapping chosen cases to number of selected time steps
-        unchosen_time_steps_for_each_chosen_case (dict): Dictionary mapping chosen cases to their unselected time steps
-    
-    Methods(public):
-        set_environment(): Main method to set up the entire environment including directories and data selection
-        make_dir_in_virtual_OpenFoam_directory(name_virtual_OF_directory, case, time_step): Creates snapshot directory for a specified case/time step in a virtual openfoam directory
-        copy_a_snap_to_the_online_directory(dir_path, OF_case, time_step): Copies a snapshot to the online directory
-    """
 
     def __init__(
         self,
@@ -54,16 +16,7 @@ class Snapshot_manager:
         snap_fraction_per_case_min,
         file_name_chosen_time_steps=None,
     ):
-        """
-        Initialize the Snapshot_manager.
-        
-        Args:
-            source_directory (str): Path to directory containing OpenFOAM cases
-            project_directory (str): Path to directory for the DA algorithm application
-            case_fraction_min (float): Minimum fraction of cases to use
-            snap_fraction_per_case_min (float): Minimum fraction of snapshots per case to use
-            file_name_chosen_time_steps (str, optional): File name with prespecidied time steps for testing
-        """
+
         # it is assumed that in the source directory which holds the cases, the cases are named numerically with unique name each
         if Path(source_directory).is_absolute() and Path(source_directory).exists():
             self.source_directory = source_directory
@@ -73,33 +26,25 @@ class Snapshot_manager:
             self.project_directory = project_directory
         else:
             raise ValueError("Provide a correct absolute path to the project directory")
+        
         self.symlinked_cases_directory = os.path.join(
             project_directory, "symlinked_cases"
         )
         if os.path.exists(self.symlinked_cases_directory):
             shutil.rmtree(self.symlinked_cases_directory)
 
-        self.offline_directory = os.path.join(
-            self.project_directory, "offline_directory"
+        self.bases_directory = os.path.join(
+            self.project_directory, "bases"
         )
-        if os.path.exists(self.offline_directory):
-            shutil.rmtree(self.offline_directory)
-
-        self.online_directory = os.path.join(self.project_directory, "online_directory")
-        if os.path.exists(self.online_directory):
-            shutil.rmtree(self.online_directory)
+        if os.path.exists(self.bases_directory):
+            shutil.rmtree(self.bases_directory)
 
         self.case_fraction_min = case_fraction_min
         self.snap_fraction_per_case_min = snap_fraction_per_case_min
         self.file_name_chosen_time_steps = file_name_chosen_time_steps
 
     def _replicate_directory_structure(self):
-        """
-        Replicate the directory structure from source directory to symlinked directory.
-        
-        Creates corresponding directories in the target location based on the
-        directory structure in the source location.
-        """
+    
         for root, dirs, files in os.walk(self.source_directory):
             # Create corresponding directories in the target location
             for dir in dirs:
@@ -110,14 +55,7 @@ class Snapshot_manager:
                 os.makedirs(target_path, exist_ok=True)
 
     def _create_symlinks_of_files_to_the_files_in_original_directory(self):
-        """
-        Create symlinks to files in original directory.
         
-        Creates symbolic links in the target location 
-        (previously determined directory structure in the method replicate_directory_structure) 
-        pointing to
-        the files in the source location.
-        """
         for root, dirs, files in os.walk(self.source_directory):
             for file in files:
                 # Build the full path of the file in the source directory
@@ -131,15 +69,7 @@ class Snapshot_manager:
                     os.symlink(source_file, target_file)
 
     def _is_numeric(self, value):
-        """
-        Check if a value is numeric.
         
-        Args:
-            value: Value to check
-            
-        Returns:
-            bool: True if value is numeric, False otherwise
-        """
         try:
             # Attempt to convert to a float
             float(value)
@@ -150,12 +80,7 @@ class Snapshot_manager:
             return False
 
     def _list_cases_in_symlinked_directory(self):
-        """
-        List and sort cases in the symlinked directory.
-        
-        Identifies and sorts the case directories (with numeric names)
-        in the symlinked directory. Saves the list to a CSV file.
-        """
+  
         # list directory
         self._list_dirs = os.listdir(self.symlinked_cases_directory)
         # list cases
@@ -175,12 +100,7 @@ class Snapshot_manager:
         self._write_in_a_CSV(file_name, data, col_head_list)
 
     def _build_dict_time_steps_for_each_case(self):
-        """
-        Build dictionaries of time steps for each case.
         
-        Creates dictionaries containing time steps for each case
-        and the count of time steps. Saves the information to a CSV file.
-        """
         # initialize
         self.time_steps_for_each_case = {}
         self.Ntime_steps_each_case = {}
@@ -211,14 +131,7 @@ class Snapshot_manager:
         self._write_in_a_CSV(file_name, data, col_head_list)
 
     def _write_in_a_CSV(self, file_name, data, col_head_list):
-        """
-        Write data to a CSV file.
-        
-        Args:
-            file_name (str): Name of the CSV file to write
-            data (list): Data to write
-            col_head_list (list): List of column headers
-        """
+       
         with open(file_name, "w", newline="") as csvfile:
             # create an instance of a writer object
             csv_writer = csv.writer(csvfile)
@@ -228,12 +141,7 @@ class Snapshot_manager:
                 csv_writer.writerow(unit)
 
     def _randomly_choose_cases(self):
-        """
-        Randomly select cases from the list of cases.
         
-        Selects a random subset of cases based on case_fraction_min.
-        Saves the chosen cases to a CSV file.
-        """
         # determine the number of chosen cases
         self.Nchosen_cases = int(np.ceil(self.case_fraction_min * self.Ncases))
         # randomly sample the cases
@@ -248,12 +156,7 @@ class Snapshot_manager:
         )
 
     def _determine_unchosen_cases(self):
-        """
-        Determine unchosen cases from the list of cases.
         
-        Creates a list of cases not chosen in _randomly_choose_cases.
-        Saves the unchosen cases to a CSV file.
-        """
         # create list of the unchosen cases
         chosen_set = set(self.chosen_cases)
         self.unchosen_cases = [
@@ -268,12 +171,7 @@ class Snapshot_manager:
         )
 
     def _randomly_choose_time_steps(self):
-        """
-        Randomly select time steps for each chosen case.
         
-        Selects a random subset of time steps for each chosen case
-        based on snap_fraction_per_case_min. Saves the chosen time steps to a CSV file.
-        """
         # initialize dictionaries
         self.Nchosen_time_steps_for_each_chosen_case = {}
         self.chosen_time_steps_for_each_chosen_case = {}
@@ -311,12 +209,7 @@ class Snapshot_manager:
         self._write_in_a_CSV(file_name_chosen, data_chosen_time_steps, col_head_list)
 
     def _determine_unchosen_time_steps(self):
-        """
-        Determine unchosen time steps for each chosen case.
         
-        Creates a list of time steps not chosen in _randomly_choose_time_steps
-        for each chosen case. Saves the unchosen time steps to a CSV file.
-        """
         # initialize
         self.unchosen_time_steps_for_each_chosen_case = {}
         # to save in a csv file
@@ -348,16 +241,8 @@ class Snapshot_manager:
         col_head_list = ["case", "time_steps", "Ntime_steps"]
         self._write_in_a_CSV(file_name_unchosen, data_unchosen_time_steps, col_head_list)
 
-    def _set_virtual_OpenFoam_directory(self, directory_path):
-        """
-        Set up a virtual OpenFOAM directory.
+    def _set_virtual_OpenFoam_directory(self):
         
-        Creates the standard OpenFOAM directory structure (system, constant, 0)
-        in the specified directory and copies the necessary files.
-        
-        Args:
-            directory_path (str): Path to create the virtual OpenFOAM directory
-        """
         # select a case, it could be random
         cs = self.chosen_cases[0]
         case_dir = os.path.join(self.symlinked_cases_directory, cs)
@@ -369,16 +254,16 @@ class Snapshot_manager:
 
         # build target directory path to copy to
         system_dir_in_virtual_OpenFoam_directory = os.path.join(
-            directory_path, "system"
+            self.bases_directory, "system"
         )
         if os.path.exists(system_dir_in_virtual_OpenFoam_directory):
             shutil.rmtree(system_dir_in_virtual_OpenFoam_directory)
         constant_dir_in_virtual_OpenFoam_directory = os.path.join(
-            directory_path, "constant"
+            self.bases_directory, "constant"
         )
         if os.path.exists(constant_dir_in_virtual_OpenFoam_directory):
             shutil.rmtree(constant_dir_in_virtual_OpenFoam_directory)
-        zero_dir_in_virtual_OpenFoam_directory = os.path.join(directory_path, "0")
+        zero_dir_in_virtual_OpenFoam_directory = os.path.join(self.bases_directory, "0")
         if os.path.exists(zero_dir_in_virtual_OpenFoam_directory):
             shutil.rmtree(zero_dir_in_virtual_OpenFoam_directory)
 
@@ -407,59 +292,19 @@ class Snapshot_manager:
             symlinks=True,
         )
 
-    def make_dir_in_virtual_OpenFoam_directory(
-        self, name_virtual_OF_directory, case, time_step
+    def make_dir_for_bases_in_virtual_OpenFoam_directory(
+        self, index_basis
     ):
-        """
-        Create a directory for a snap in the virtual OpenFOAM directory.
         
-        Args:
-            name_virtual_OF_directory (str): Path to the virtual OpenFOAM directory
-            case (str): Case name
-            time_step (str): Time step
-            
-        Returns:
-            str: Path to the created directory
-        """
-        # create directory structure
-        dir_name = case + "/" + time_step
         # construct the path
-        dir_path = os.path.join(name_virtual_OF_directory, dir_name)
+        dir_path = os.path.join(self.bases_directory, dir_name)
         # make the directory
         os.makedirs(dir_path, exist_ok=True)
 
         return dir_path
 
-    def _copy_chosen_time_steps_to_virtual_OF_directory_offline(self):
-        """
-        Copy chosen time steps to the virtual OpenFOAM directory for offline phase.
-        
-        Copies the selected time steps for each chosen case to the offline directory for training phase.
-        """
-        # loop over the dictionary
-        for key, value in self.chosen_time_steps_for_each_chosen_case.items():
-            for t_step in value:
-                # construct the source directory path to copy from
-                source_dir_path = os.path.join(
-                    self.symlinked_cases_directory, key, t_step
-                )
-                # construct the taget directory path to copy to
-                target_dir_path = self.make_dir_in_virtual_OpenFoam_directory(
-                    self.offline_directory, key, t_step
-                )
-
-                # copy the directory with symlinks
-                shutil.copytree(
-                    source_dir_path, target_dir_path, dirs_exist_ok=True, symlinks=True
-                )
-
     def _parse_time_steps_from_file_chosen_time_steps(self):
-        """
-        Parse time steps from a CSV file.
         
-        Reads chosen cases and time steps from the specified CSV file
-        instead of randomly selecting them.
-        """
         # initialize
         self.Nchosen_time_steps_for_each_chosen_case = {}
         self.chosen_time_steps_for_each_chosen_case = {}
@@ -495,16 +340,6 @@ class Snapshot_manager:
                     raise FileNotFoundError("File is not of expected structure")
 
     def set_environment(self):
-        """
-        Set up the environment for data assimilation.
-        
-        Creates the necessary directory structure, selects cases and time steps
-        (either randomly or from a file), and sets up virtual OpenFOAM directories
-        for offline and online phases.
-        
-        Raises:
-            FileNotFoundError: If the specified file for chosen time steps does not exist or has an invalid structure
-        """
 
         self._replicate_directory_structure()
         self._create_symlinks_of_files_to_the_files_in_original_directory()
@@ -532,30 +367,9 @@ class Snapshot_manager:
             self._determine_unchosen_time_steps()
         
 
-        # set a virtual OpenFoam directory for Offline
-        self._set_virtual_OpenFoam_directory(self.offline_directory)
-        self._copy_chosen_time_steps_to_virtual_OF_directory_offline()
+        # set up the virtual OpenFoam directory for Offline
+        self._set_virtual_OpenFoam_directory()
 
-        # set a virtual OpenFoam directory for Online
-        self._set_virtual_OpenFoam_directory(self.online_directory)
-
-    def copy_a_snap_to_the_online_directory(self, dir_path, OF_case, time_step):
-        """
-        Copy a snapshot to the online directory.
-        
-        Args:
-            dir_path (str): Target directory path (online directory)
-            OF_case (str): OpenFOAM case name
-            time_step (str): Time step
-        """
-        self.real_cs_dir = os.path.join(self.symlinked_cases_directory, OF_case)
-        self.real_time_dir = os.path.join(self.real_cs_dir, time_step)
-        shutil.copytree(
-            self.real_time_dir,
-            dir_path,
-            dirs_exist_ok=True,
-            symlinks=True,
-        )
 
 
 if __name__ == "__main__":
@@ -604,12 +418,4 @@ if __name__ == "__main__":
     # Set up the environment
     sm.set_environment()
     print(f"Selected {len(sm.chosen_cases)} cases out of {sm.Ncases}")
-
-    # Set up a test case
-    first_case = list(sm.unchosen_time_steps_for_each_chosen_case.keys())[0]
-    time_step = sm.unchosen_time_steps_for_each_chosen_case[first_case][0]
-
-    dir_path = sm.make_dir_in_virtual_OpenFoam_directory(
-        sm.online_directory, firs_case, time_step
-    )
-    sm.copy_a_snap_to_the_online_directory(dir_path, firs_case, time_step)
+    
