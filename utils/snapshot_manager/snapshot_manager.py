@@ -16,15 +16,13 @@ class Snapshot_manager:
         snap_fraction_per_case_min,
         file_name_chosen_time_steps=None,
     ):
-
-        # it is assumed that in the source directory which holds the cases, the cases are named numerically with unique name each
-        if Path(source_directory).is_absolute() and Path(source_directory).exists():
-            self.source_directory = source_directory
-        else:
+        try:
+            self.source_directory = str(Path(source_directory).resolve(strict=False))
+        except:
             raise ValueError("Provide a correct absolute path to the source directory")
-        if Path(project_directory).is_absolute() and Path(project_directory).exists():   
-            self.project_directory = project_directory
-        else:
+        try:    
+            self.project_directory = str(Path(project_directory).resolve(strict=False))
+        except:
             raise ValueError("Provide a correct absolute path to the project directory")
         
         self.symlinked_cases_directory = os.path.join(
