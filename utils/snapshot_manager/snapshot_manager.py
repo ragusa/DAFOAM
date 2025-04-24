@@ -41,6 +41,8 @@ class Snapshot_manager:
 
         self.case_fraction_min = case_fraction_min
         self.snap_fraction_per_case_min = snap_fraction_per_case_min
+        
+        #it is assumed that the file is in the project directory 
         self.file_name_chosen_time_steps = file_name_chosen_time_steps
     
     #this is the main method that drives almost everything
@@ -72,7 +74,7 @@ class Snapshot_manager:
             self._determine_unchosen_time_steps()
         
 
-        # set up the virtual OpenFoam directory for Offline
+        # set up the virtual OpenFoam directory for Offline (bases are kept here)
         self._set_virtual_OpenFoam_directory()
 
 
@@ -197,7 +199,6 @@ class Snapshot_manager:
 
         for cs in self.chosen_cases:
             # determine how many snaps the case has
-            temp_dict = {}
             Nsnap = self.Ntime_steps_each_case[cs]
             # determine the number of snaps that would be chosen
             Nchosen_snap = int(np.ceil(self.snap_fraction_per_case_min * Nsnap))
@@ -221,10 +222,8 @@ class Snapshot_manager:
                     self.Nchosen_time_steps_for_each_chosen_case[cs],
                 ]
             )
-            for time_step in self.chosen_time_steps_for_each_chosen_case[cs]:
-                dir_path = os.path.join(self.symlinked_cases_directory, cs, time_step)
-                temp_dict[time_step] = dir_path
-            self.directory_paths_for_chosen_time_steps_for_each_chosen_case[cs] = temp_dict
+            time_steps_case = self.chosen_time_steps_for_each_chosen_case[cs]
+            self.directory_paths_for_chosen_time_steps_for_each_chosen_case[cs] = self._build_paths(time_steps_case, cs)
 
 
         file_name_chosen = "chosen_time_steps_each_case.csv"
@@ -245,7 +244,6 @@ class Snapshot_manager:
 
         for cs in self.chosen_cases:
             # chosen case, unchosen time steps
-            temp_dict_chosen = {}
             chosen_set = set(self.chosen_time_steps_for_each_chosen_case[cs])
             self.unchosen_time_steps_for_each_chosen_case[cs] = [
                 time_step
@@ -266,20 +264,14 @@ class Snapshot_manager:
                     - self.Nchosen_time_steps_for_each_chosen_case[cs],
                 ]
             )
-            for time_step in self.unchosen_time_steps_for_each_chosen_case[cs]:
-                dir_path = os.path.join(self.symlinked_cases_directory, cs, time_step)
-                temp_dict_chosen[time_step] = dir_path
-            self.directory_paths_for_unchosen_time_steps_for_each_chosen_case[cs] = temp_dict_chosen
+            time_steps_case = self.unchosen_time_steps_for_each_chosen_case[cs]
+            self.directory_paths_for_unchosen_time_steps_for_each_chosen_case[cs] = self._build_paths(time_steps_case, cs)
 
         for cs in self.unchosen_cases:
             #unchosen case unchosen time steps
-            temp_dict_unchosen = {}
             self.unchosen_time_steps_for_each_unchosen_case[cs] = self.time_steps_for_each_case[cs]
-            
-            for time_step in self.unchosen_time_steps_for_each_unchosen_case[cs]:
-                dir_path = os.path.join(self.symlinked_cases_directory, cs, time_step)
-                temp_dict_unchosen[time_step] = dir_path
-            self.directory_paths_for_unchosen_time_steps_for_each_unchosen_case[cs] = temp_dict_unchosen
+            time_steps_case = self.unchosen_time_steps_for_each_unchosen_case[cs]
+            self.directory_paths_for_unchosen_time_steps_for_each_unchosen_case[cs] = self._build_paths(time_steps_case, cs)
 
         file_name_unchosen = "unchosen_time_steps_each_case.csv"
         col_head_list = ["case", "time_steps", "Ntime_steps"]
@@ -358,6 +350,7 @@ class Snapshot_manager:
             reader = csv.reader(file)
             # Skip header row
             next(reader)
+            self.directory_paths_for_chosen_time_steps_for_each_chosen_case = {}
             for row in reader:
                 # Ensure we have all three columns
                 if len(row) == 3:
@@ -374,14 +367,23 @@ class Snapshot_manager:
 
                     # Store in dictionaries
                     self.chosen_time_steps_for_each_chosen_case[case_name] = time_steps
-                    self.Nchosen_time_steps_for_each_chosen_case[case_name] = (
-                        n_time_steps
-                    )
+                    self.Nchosen_time_steps_for_each_chosen_case[case_name] = n_time_steps
 
                     # store in list
                     self.chosen_cases.append(case_name)
+
+                    #build directory path
+                    time_steps_case = self.chosen_time_steps_for_each_chosen_case[case_name]
+                    self.directory_paths_for_chosen_time_steps_for_each_chosen_case[case_name] = self._build_paths(time_steps_case, case_name)
                 else:
                     raise FileNotFoundError("File is not of expected structure")
+
+    def _build_paths(self, time_steps_case, case):
+        temp_dict = {}
+        for time_step in time_steps_case:
+            dir_path = os.path.join(self.symlinked_cases_directory, case, time_step)
+            temp_dict[time_step] = dir_path
+        return temp_dict
 
 
 
