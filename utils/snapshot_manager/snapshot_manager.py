@@ -42,6 +42,39 @@ class Snapshot_manager:
         self.case_fraction_min = case_fraction_min
         self.snap_fraction_per_case_min = snap_fraction_per_case_min
         self.file_name_chosen_time_steps = file_name_chosen_time_steps
+    
+    #this is the main method that drives almost everything
+    def set_environment(self):
+
+        self._replicate_directory_structure()
+        self._create_symlinks_of_files_to_the_files_in_original_directory()
+        self._list_cases_in_symlinked_directory()
+
+        self._build_dict_time_steps_for_each_case()
+
+        if self.file_name_chosen_time_steps is not None:
+            self.file_path_chosen_time_steps = os.path.join(
+                self.project_directory, self.file_name_chosen_time_steps
+            )
+            if os.path.exists(self.file_path_chosen_time_steps):
+                if os.path.isfile(self.file_path_chosen_time_steps):
+                    self._parse_time_steps_from_file_chosen_time_steps()
+                    self._determine_unchosen_cases()
+                    self._determine_unchosen_time_steps()
+                else:
+                    raise FileNotFoundError("There is no file of the given file name.")
+            else:
+                raise FileNotFoundError("File does not exist.")
+        else:
+            self._randomly_choose_cases()
+            self._determine_unchosen_cases()
+            self._randomly_choose_time_steps()
+            self._determine_unchosen_time_steps()
+        
+
+        # set up the virtual OpenFoam directory for Offline
+        self._set_virtual_OpenFoam_directory()
+
 
     def _replicate_directory_structure(self):
     
@@ -68,30 +101,10 @@ class Snapshot_manager:
                 if not os.path.exists(target_file):
                     os.symlink(source_file, target_file)
 
-    def _is_numeric(self, value):
-        
-        try:
-            # Attempt to convert to a float
-            float(value)
-            # Conversion successful
-            return True
-        except ValueError:
-            # Conversion fails if the value is not numeric
-            return False
-
     def _list_cases_in_symlinked_directory(self):
   
-        # list directory
-        self._list_dirs = os.listdir(self.symlinked_cases_directory)
-        # list cases
-        self.list_cases = [
-            k
-            for k in self._list_dirs
-            if self._is_numeric(k)
-            and os.path.isdir(os.path.join(self.symlinked_cases_directory, k))
-        ]
         # sort them according to the numeric value (assuming case name is numeric string)
-        self.list_cases = sorted(self.list_cases, key=float)
+        self.list_cases = os.listdir(self.symlinked_cases_directory)
         # Number of cases
         self.Ncases = len(self.list_cases)
         file_name = "case_list.csv"
@@ -155,6 +168,7 @@ class Snapshot_manager:
             file_name_chosen_case, data_chosen_case, col_head_list_chosen_case
         )
 
+
     def _determine_unchosen_cases(self):
         
         # create list of the unchosen cases
@@ -175,12 +189,15 @@ class Snapshot_manager:
         # initialize dictionaries
         self.Nchosen_time_steps_for_each_chosen_case = {}
         self.chosen_time_steps_for_each_chosen_case = {}
+        #dictionary storing directory paths
+        self.directory_paths_for_chosen_time_steps_for_each_chosen_case = {}
 
         # to save in a csv file
         data_chosen_time_steps = []
 
         for cs in self.chosen_cases:
             # determine how many snaps the case has
+            temp_dict = {}
             Nsnap = self.Ntime_steps_each_case[cs]
             # determine the number of snaps that would be chosen
             Nchosen_snap = int(np.ceil(self.snap_fraction_per_case_min * Nsnap))
@@ -193,6 +210,7 @@ class Snapshot_manager:
             self.chosen_time_steps_for_each_chosen_case[cs] = sorted(
                 self.chosen_time_steps_for_each_chosen_case[cs], key=float
             )
+
             chosen_time_steps_str = ",".join(
                 self.chosen_time_steps_for_each_chosen_case[cs]
             )
@@ -203,6 +221,11 @@ class Snapshot_manager:
                     self.Nchosen_time_steps_for_each_chosen_case[cs],
                 ]
             )
+            for time_step in self.chosen_time_steps_for_each_chosen_case[cs]:
+                dir_path = os.path.join(self.symlinked_cases_directory, cs, time_step)
+                temp_dict[time_step] = dir_path
+            self.directory_paths_for_chosen_time_steps_for_each_chosen_case[cs] = temp_dict
+
 
         file_name_chosen = "chosen_time_steps_each_case.csv"
         col_head_list = ["case", "time_steps", "Ntime_steps"]
@@ -212,10 +235,17 @@ class Snapshot_manager:
         
         # initialize
         self.unchosen_time_steps_for_each_chosen_case = {}
+        self.unchosen_time_steps_for_each_unchosen_case = {}
         # to save in a csv file
+
         data_unchosen_time_steps = []
 
+        self.directory_paths_for_unchosen_time_steps_for_each_chosen_case = {}
+        self.directory_paths_for_unchosen_time_steps_for_each_unchosen_case = {}
+
         for cs in self.chosen_cases:
+            # chosen case, unchosen time steps
+            temp_dict_chosen = {}
             chosen_set = set(self.chosen_time_steps_for_each_chosen_case[cs])
             self.unchosen_time_steps_for_each_chosen_case[cs] = [
                 time_step
@@ -236,6 +266,20 @@ class Snapshot_manager:
                     - self.Nchosen_time_steps_for_each_chosen_case[cs],
                 ]
             )
+            for time_step in self.unchosen_time_steps_for_each_chosen_case[cs]:
+                dir_path = os.path.join(self.symlinked_cases_directory, cs, time_step)
+                temp_dict_chosen[time_step] = dir_path
+            self.directory_paths_for_unchosen_time_steps_for_each_chosen_case[cs] = temp_dict_chosen
+
+        for cs in self.unchosen_cases:
+            #unchosen case unchosen time steps
+            temp_dict_unchosen = {}
+            self.unchosen_time_steps_for_each_unchosen_case[cs] = self.time_steps_for_each_case[cs]
+            
+            for time_step in self.unchosen_time_steps_for_each_unchosen_case[cs]:
+                dir_path = os.path.join(self.symlinked_cases_directory, cs, time_step)
+                temp_dict_unchosen[time_step] = dir_path
+            self.directory_paths_for_unchosen_time_steps_for_each_unchosen_case[cs] = temp_dict_unchosen
 
         file_name_unchosen = "unchosen_time_steps_each_case.csv"
         col_head_list = ["case", "time_steps", "Ntime_steps"]
@@ -338,37 +382,6 @@ class Snapshot_manager:
                     self.chosen_cases.append(case_name)
                 else:
                     raise FileNotFoundError("File is not of expected structure")
-
-    def set_environment(self):
-
-        self._replicate_directory_structure()
-        self._create_symlinks_of_files_to_the_files_in_original_directory()
-        self._list_cases_in_symlinked_directory()
-
-        self._build_dict_time_steps_for_each_case()
-
-        if self.file_name_chosen_time_steps is not None:
-            self.file_path_chosen_time_steps = os.path.join(
-                self.project_directory, self.file_name_chosen_time_steps
-            )
-            if os.path.exists(self.file_path_chosen_time_steps):
-                if os.path.isfile(self.file_path_chosen_time_steps):
-                    self._parse_time_steps_from_file_chosen_time_steps()
-                    self._determine_unchosen_cases()
-                    self._determine_unchosen_time_steps()
-                else:
-                    raise FileNotFoundError("There is no file of the given file name.")
-            else:
-                raise FileNotFoundError("File does not exist.")
-        else:
-            self._randomly_choose_cases()
-            self._determine_unchosen_cases()
-            self._randomly_choose_time_steps()
-            self._determine_unchosen_time_steps()
-        
-
-        # set up the virtual OpenFoam directory for Offline
-        self._set_virtual_OpenFoam_directory()
 
 
 
