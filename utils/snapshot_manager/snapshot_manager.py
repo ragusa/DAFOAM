@@ -107,7 +107,7 @@ class Snapshot_manager:
         self.list_cases = os.listdir(self.symlinked_cases_directory)
         # Number of cases
         self.Ncases = len(self.list_cases)
-        file_name = "case_list.csv"
+        file_name = os.path.join(self.project_directory, "case_list.csv")
         data = [[case] for case in self.list_cases]
         col_head_list = ["case"]
         self._write_in_a_CSV(file_name, data, col_head_list)
@@ -139,7 +139,7 @@ class Snapshot_manager:
             time_steps_str = ",".join(self.time_steps_for_each_case[cs])
             data.append([cs, time_steps_str, self.Ntime_steps_each_case[cs]])
 
-        file_name = "time_steps_each_case.csv"
+        file_name = os.path.join(self.project_directory, "time_steps_each_case.csv")
         col_head_list = ["case", "time_steps", "Ntime_steps"]
         self._write_in_a_CSV(file_name, data, col_head_list)
 
@@ -161,7 +161,7 @@ class Snapshot_manager:
         self.chosen_cases = random.sample(self.list_cases, self.Nchosen_cases)
 
         # save chosen cases in a csv file
-        file_name_chosen_case = "chosen_cases.csv"
+        file_name_chosen_case = os.path.join(self.project_directory, "chosen_cases.csv")
         data_chosen_case = [[case] for case in self.chosen_cases]
         col_head_list_chosen_case = ["Chosen_Case"]
         self._write_in_a_CSV(
@@ -177,7 +177,7 @@ class Snapshot_manager:
             case for case in self.list_cases if case not in chosen_set
         ]
         # save unchosen cases in a csv file
-        file_name_unchosen_case = "unchosen_cases.csv"
+        file_name_unchosen_case = os.path.join(self.project_directory, "unchosen_cases.csv")
         data_unchosen_case = [[case] for case in self.unchosen_cases]
         col_head_list_unchosen_case = ["Unchosen_Case"]
         self._write_in_a_CSV(
@@ -224,7 +224,7 @@ class Snapshot_manager:
             self.directory_paths_for_chosen_time_steps_for_each_chosen_case[cs] = self._build_paths(time_steps_case, cs)
 
 
-        file_name_chosen = "chosen_time_steps_each_case.csv"
+        file_name_chosen = os.path.join(self.project_directory, "chosen_time_steps_each_case.csv")
         col_head_list = ["case", "time_steps", "Ntime_steps"]
         self._write_in_a_CSV(file_name_chosen, data_chosen_time_steps, col_head_list)
 
@@ -271,7 +271,7 @@ class Snapshot_manager:
             time_steps_case = self.unchosen_time_steps_for_each_unchosen_case[cs]
             self.directory_paths_for_unchosen_time_steps_for_each_unchosen_case[cs] = self._build_paths(time_steps_case, cs)
 
-        file_name_unchosen = "unchosen_time_steps_each_case.csv"
+        file_name_unchosen = os.path.join(self.project_directory, "unchosen_time_steps_each_case.csv")
         col_head_list = ["case", "time_steps", "Ntime_steps"]
         self._write_in_a_CSV(file_name_unchosen, data_unchosen_time_steps, col_head_list)
 
