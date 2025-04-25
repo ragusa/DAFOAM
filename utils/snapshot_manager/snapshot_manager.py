@@ -3,8 +3,14 @@ import os
 import numpy as np
 import random
 import pickle
-import inspect
 from pathlib import Path
+from collections import Counter
+
+class FieldsNotSameError(Exception):
+    pass
+
+class WrongFormatPathError(Exception):
+    pass
 
 
 class Snapshot_manager:
@@ -16,21 +22,25 @@ class Snapshot_manager:
         try:
             self.source_directory = str(Path(source_directory).resolve(strict=False))
         except:
-            raise ValueError("Provide a correct absolute path to the source directory")
+            raise WrongFormatPathError("Provide a correct absolute path to the source directory")
         try:    
             self.project_directory = str(Path(project_directory).resolve(strict=False))
         except:
-            raise ValueError("Provide a correct absolute path to the project directory")
+            raise WrongFormatPathError("Provide a correct absolute path to the project directory")
         
         self.symlinked_cases_directory = os.path.join(project_directory, "symlinked_cases")
         if os.path.isdir(self.symlinked_cases_directory):
             self._register()
             self._list_cases_in_symlinked_directory()
+            self._create_list_snapshot_paths()
+            self._create_list_fields()
         else:
             self._register()
             self._replicate_directory_structure()
             self._create_symlinks_of_files_to_the_files_in_original_directory()
             self._list_cases_in_symlinked_directory()
+            self._create_list_snapshot_paths()
+            self._create_list_fields()
 
 
         self.bases_directory = os.path.join(self.project_directory, "bases")
@@ -40,6 +50,10 @@ class Snapshot_manager:
     @classmethod
     def get_count(cls):
         return cls.__count
+    
+    @classmethod
+    def get_list_instances(cls):
+        return cls.__instances
     
     @classmethod
     def reset_instances(cls):
@@ -70,17 +84,12 @@ class Snapshot_manager:
             pickle.dump(self, f)
     
     def _register(self):
-        self.id = Snapshot_manager.__count
-        Snapshot_manager.__count +=1
-        Snapshot_manager.__instances.append(self)
+        self.id = self.__class__.__count
+        self.__class__.__count +=1
+        self.__class__.__instances.append(self)
     
     #this is the main method that drives almost everything
-    def set_environment(self, case_fraction_min, snap_fraction_per_case_min, list_chosen_time_steps=None):
-
-        self._register()
-        self._replicate_directory_structure()
-        self._create_symlinks_of_files_to_the_files_in_original_directory()
-        self._list_cases_in_symlinked_directory()
+    def set_environment(self, case_fraction_min=1, snap_fraction_per_case_min=1, list_chosen_time_steps=None):
 
         self._build_dict_time_steps_for_each_case()
 
@@ -125,9 +134,7 @@ class Snapshot_manager:
                 # Build the full path of the file in the source directory
                 source_file = os.path.join(root, file)
                 # Map the source file path to the corresponding target file path
-                target_file = source_file.replace(
-                    self.source_directory, self.symlinked_cases_directory
-                )
+                target_file = source_file.replace(self.source_directory, self.symlinked_cases_directory)
                 # Check if the symbolic link (or file) already exists in the target; if not, create it.
                 if not os.path.exists(target_file):
                     os.symlink(source_file, target_file)
@@ -138,6 +145,56 @@ class Snapshot_manager:
         self.list_cases = os.listdir(self.symlinked_cases_directory)
         # Number of cases
         self.Ncases = len(self.list_cases)
+    
+    def _create_list_snapshot_paths(self):
+        self.list_snapshot_paths_in_symlinked_directory = []
+        for cs in self.list_cases:
+            time_steps, _ = self._create_list_time_steps_in_case(cs)
+            temp_list = [cs+"/"+time for time in time_steps]
+            self.list_snapshot_paths_in_symlinked_directory.extend(temp_list)
+
+    def _create_list_fields(self):
+        
+        self.fields_paths = []
+        flag = 0
+
+        for path in self.list_snapshot_paths_in_symlinked_directory:
+            true_path = os.path.join(self.symlinked_cases_directory, path)
+            fields_paths = []
+            for root, _, files in os.walk(true_path):
+                for file in files:
+                    # Build the full path of the file in the source directory
+                    field_path = os.path.join(root, file)
+                    # Map the source file path to the corresponding target file path
+                    field = field_path.replace(true_path, "")
+                    fields_paths.append(field)
+                if flag == 0:
+                    self.fields_paths.extend(fields_paths)
+                else:
+                    identical = (Counter(self.fields_paths) == Counter(fields_paths))
+                    if not identical:
+                        raise FieldsNotSameError("Fields in different cases are not identical.")
+        
+    
+
+    def _create_list_time_steps_in_case(self, case):
+
+        # List all items in the target directory
+        case_directory = os.path.join(self.symlinked_cases_directory, case)
+        list_current_directory = os.listdir(case_directory)
+        # Filter directories that are named with numeric values and exist
+        time_steps = [
+            d
+            for d in list_current_directory
+            if d.isnumeric()
+            and d != "0"
+            and os.path.isdir(os.path.join(case_directory, d))
+        ]
+        # Sort time steps numerically
+        time_steps = sorted(time_steps, key=float)
+        Ntime_steps = len(time_steps)
+
+        return time_steps, Ntime_steps
     
     def _build_dict_time_steps_for_each_case(self):
         
@@ -162,82 +219,7 @@ class Snapshot_manager:
             self.time_steps_for_each_case[cs] = time_steps
             self.Ntime_steps_each_case[cs] = len(time_steps)
 
-    def _randomly_choose_cases(self):
-        
-        # determine the number of chosen cases
-        self.Nchosen_cases = int(np.ceil(self.case_fraction_min * self.Ncases))
-        # randomly sample the cases
-        self.chosen_cases = random.sample(self.list_cases, self.Nchosen_cases)
-
-
-    def _determine_unchosen_cases(self):
-        
-        # create list of the unchosen cases
-        chosen_set = set(self.chosen_cases)
-        self.unchosen_cases = [
-            case for case in self.list_cases if case not in chosen_set
-        ]
-
-    def _randomly_choose_time_steps(self):
-        
-        # initialize dictionaries
-        self.Nchosen_time_steps_for_each_chosen_case = {}
-        self.chosen_time_steps_for_each_chosen_case = {}
-        #dictionary storing directory paths
-        self.directory_paths_for_chosen_time_steps_for_each_chosen_case = {}
-
-        for cs in self.chosen_cases:
-            # determine how many snaps the case has
-            Nsnap = self.Ntime_steps_each_case[cs]
-            # determine the number of snaps that would be chosen
-            Nchosen_snap = int(np.ceil(self.snap_fraction_per_case_min * Nsnap))
-            # hold the value in the dictionary
-            self.Nchosen_time_steps_for_each_chosen_case[cs] = Nchosen_snap
-            # randomly sample the chosen time steps
-            self.chosen_time_steps_for_each_chosen_case[cs] = random.sample(
-                self.time_steps_for_each_case[cs], Nchosen_snap
-            )
-            self.chosen_time_steps_for_each_chosen_case[cs] = sorted(
-                self.chosen_time_steps_for_each_chosen_case[cs], key=float
-            )
-
-          
-            time_steps_case = self.chosen_time_steps_for_each_chosen_case[cs]
-            self.directory_paths_for_chosen_time_steps_for_each_chosen_case[cs] = self._build_paths(time_steps_case, cs)
-
-
-    def _determine_unchosen_time_steps(self):
-        
-        # initialize
-        self.unchosen_time_steps_for_each_chosen_case = {}
-        self.unchosen_time_steps_for_each_unchosen_case = {}
-        # to save in a csv file
-
-        data_unchosen_time_steps = []
-
-        self.directory_paths_for_unchosen_time_steps_for_each_chosen_case = {}
-        self.directory_paths_for_unchosen_time_steps_for_each_unchosen_case = {}
-
-        for cs in self.chosen_cases:
-            # chosen case, unchosen time steps
-            chosen_set = set(self.chosen_time_steps_for_each_chosen_case[cs])
-            self.unchosen_time_steps_for_each_chosen_case[cs] = [
-                time_step
-                for time_step in self.time_steps_for_each_case[cs]
-                if time_step not in chosen_set
-            ]
-            self.unchosen_time_steps_for_each_chosen_case[cs] = sorted(
-                self.unchosen_time_steps_for_each_chosen_case[cs], key=float
-            )
-            time_steps_case = self.unchosen_time_steps_for_each_chosen_case[cs]
-            self.directory_paths_for_unchosen_time_steps_for_each_chosen_case[cs] = self._build_paths(time_steps_case, cs)
-
-        for cs in self.unchosen_cases:
-            #unchosen case unchosen time steps
-            self.unchosen_time_steps_for_each_unchosen_case[cs] = self.time_steps_for_each_case[cs]
-            time_steps_case = self.unchosen_time_steps_for_each_unchosen_case[cs]
-            self.directory_paths_for_unchosen_time_steps_for_each_unchosen_case[cs] = self._build_paths(time_steps_case, cs)
-
+    
     def _set_virtual_OpenFoam_directory(self):
         
         # select a case, it could be random
@@ -289,9 +271,7 @@ class Snapshot_manager:
             symlinks=True,
         )
 
-    def make_dir_for_bases_in_virtual_OpenFoam_directory(
-        self, index_basis
-    ):
+    def make_dir_for_bases_in_virtual_OpenFoam_directory(self, index_basis):
         
         # construct the path
         dir_path = os.path.join(self.bases_directory, index_basis)
