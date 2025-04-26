@@ -5,6 +5,7 @@ import random
 import pickle
 from pathlib import Path
 from collections import Counter
+import glob
 
 class FieldsNotSameError(Exception):
     pass
@@ -160,43 +161,30 @@ class Snapshot_manager:
 
         for path in self.list_snapshot_paths_in_symlinked_directory:
             true_path = os.path.join(self.symlinked_cases_directory, path)
-            
-            for root, dirs, files in os.walk(true_path):
-                fields_paths = []
-                if (root == true_path):
-                    #print("Here")
-                    if len(dirs) == 0:
-                        print("Here0")
-                        pass
-                    else:
-                        #print("Here1")
-                        continue
-                elif root.endswith("Region"):
-                        print("Here2")
-                        pass
-                else:
-                    #print("Here3")
-                    continue
-                
-                
-                print(files)
-                for file in files:
-                    # Build the full path of the file in the source directory
-                    field_path = os.path.join(root, file)
-                    # Map the source file path to the corresponding target file path
-                    field = field_path.replace(true_path, "")
-                    fields_paths.append(field)
-                if flag == 0:
-                    self.fields_paths.extend(fields_paths.copy())
-                    flag = 1
-                else:
-                    identical = (Counter(self.fields_paths) == Counter(fields_paths))
-                    
-                    if not identical:
-                        print("Fields Paths", self.fields_paths)
-                        print("New case Fields Path", fields_paths)
-                        raise FieldsNotSameError("Fields in different cases are not identical.")
+            directories = os.listdir(true_path)
+            self.regions = [elem for elem in directories if elem.endswith("Region")]
+            self.Nregions = len(self.regions)
+            fields_paths = []
+            if self.Nregions == 0:
+                fields = [elem for elem in directories if os.path.isfile(os.path.join(true_path, elem))]
+                fields_paths.extend(fields)
 
+            else:
+                for region in self.regions:
+                    fields = os.listdir(os.path.join(true_path, region))
+                    fields_paths.extend([region+"/"+elem for elem in fields])
+                
+            if flag == 0:
+                self.fields_paths.extend(fields_paths)
+                self.Nfields = len(self.fields_paths)
+                flag = 1
+            else:
+                identical = (Counter(self.fields_paths) == Counter(fields_paths))
+                if not identical:
+                    raise FieldsNotSameError("Fields in different cases are not identical.")
+        
+
+            
     def _create_list_time_steps_in_case(self, case):
 
         # List all items in the target directory
