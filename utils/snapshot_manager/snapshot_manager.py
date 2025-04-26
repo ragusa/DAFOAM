@@ -9,7 +9,7 @@ from collections import Counter
 class FieldsNotSameError(Exception):
     pass
 
-class WrongFormatPathError(Exception):
+class WrongPathError(Exception):
     pass
 
 
@@ -22,11 +22,11 @@ class Snapshot_manager:
         try:
             self.source_directory = str(Path(source_directory).resolve(strict=False))
         except:
-            raise WrongFormatPathError("Provide a correct absolute path to the source directory")
+            raise WrongPathError("Provide a correct absolute path to the source directory")
         try:    
             self.project_directory = str(Path(project_directory).resolve(strict=False))
         except:
-            raise WrongFormatPathError("Provide a correct absolute path to the project directory")
+            raise WrongPathError("Provide a correct absolute path to the project directory")
         
         self.symlinked_cases_directory = os.path.join(project_directory, "symlinked_cases")
         if os.path.isdir(self.symlinked_cases_directory):
@@ -160,8 +160,26 @@ class Snapshot_manager:
 
         for path in self.list_snapshot_paths_in_symlinked_directory:
             true_path = os.path.join(self.symlinked_cases_directory, path)
-            fields_paths = []
-            for root, _, files in os.walk(true_path):
+            
+            for root, dirs, files in os.walk(true_path):
+                fields_paths = []
+                if (root == true_path):
+                    #print("Here")
+                    if len(dirs) == 0:
+                        print("Here0")
+                        pass
+                    else:
+                        #print("Here1")
+                        continue
+                elif root.endswith("Region"):
+                        print("Here2")
+                        pass
+                else:
+                    #print("Here3")
+                    continue
+                
+                
+                print(files)
                 for file in files:
                     # Build the full path of the file in the source directory
                     field_path = os.path.join(root, file)
@@ -169,13 +187,15 @@ class Snapshot_manager:
                     field = field_path.replace(true_path, "")
                     fields_paths.append(field)
                 if flag == 0:
-                    self.fields_paths.extend(fields_paths)
+                    self.fields_paths.extend(fields_paths.copy())
+                    flag = 1
                 else:
                     identical = (Counter(self.fields_paths) == Counter(fields_paths))
+                    
                     if not identical:
+                        print("Fields Paths", self.fields_paths)
+                        print("New case Fields Path", fields_paths)
                         raise FieldsNotSameError("Fields in different cases are not identical.")
-        
-    
 
     def _create_list_time_steps_in_case(self, case):
 
