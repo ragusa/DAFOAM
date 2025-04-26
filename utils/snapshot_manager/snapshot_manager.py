@@ -5,12 +5,14 @@ import random
 import pickle
 from pathlib import Path
 from collections import Counter
-import glob
 
 class FieldsNotSameError(Exception):
     pass
 
 class WrongPathError(Exception):
+    pass
+
+class DirectoryExistsError(Exception):
     pass
 
 
@@ -30,24 +32,19 @@ class Snapshot_manager:
             raise WrongPathError("Provide a correct absolute path to the project directory")
         
         self.symlinked_cases_directory = os.path.join(project_directory, "symlinked_cases")
-        if os.path.isdir(self.symlinked_cases_directory):
-            self._register()
-            self._list_cases_in_symlinked_directory()
-            self._create_list_snapshot_paths()
-            self._create_list_fields()
-        else:
-            self._register()
+        if not os.path.isdir(self.symlinked_cases_directory):    
             self._replicate_directory_structure()
             self._create_symlinks_of_files_to_the_files_in_original_directory()
-            self._list_cases_in_symlinked_directory()
-            self._create_list_snapshot_paths()
-            self._create_list_fields()
-
+            
+        self._list_cases_in_symlinked_directory()
+        self._create_list_snapshot_paths()
+        self._create_list_fields()
 
         self.bases_directory = os.path.join(self.project_directory, "bases")
         if os.path.exists(self.bases_directory):
-            shutil.rmtree(self.bases_directory)
-    
+            raise DirectoryExistsError("Bases directory already exists !!!")
+        self._register()
+
     @classmethod
     def get_count(cls):
         return cls.__count
@@ -89,33 +86,46 @@ class Snapshot_manager:
         self.__class__.__count +=1
         self.__class__.__instances.append(self)
     
-    #this is the main method that drives almost everything
-    def set_environment(self, case_fraction_min=1, snap_fraction_per_case_min=1, list_chosen_time_steps=None):
+    def set_environment(self, case_fraction_min=1, snap_fraction_per_case_min=1, list_chosen_snapshot_paths=None):
 
+        self.case_fraction_min = case_fraction_min
+        self.snap_fraction_per_case_min = snap_fraction_per_case_min
         self._build_dict_time_steps_for_each_case()
 
-        if list_chosen_time_steps is not None:
-            self.file_path_chosen_time_steps = os.path.join(
-                self.project_directory, self.file_name_chosen_time_steps
-            )
-            if os.path.exists(self.file_path_chosen_time_steps):
-                if os.path.isfile(self.file_path_chosen_time_steps):
-                    self._parse_time_steps_from_file_chosen_time_steps()
-                    self._determine_unchosen_cases()
-                    self._determine_unchosen_time_steps()
-                else:
-                    raise FileNotFoundError("There is no file of the given file name.")
-            else:
-                raise FileNotFoundError("File does not exist.")
+        if list_chosen_snapshot_paths is not None:
+            self.list_chosen_snapshot_paths = list_chosen_snapshot_paths
+            
         else:
-            self._randomly_choose_cases()
-            self._determine_unchosen_cases()
+            self.Nchosen_cases = np.int(np.ceil(self.Ncases * case_fraction_min))
+            self.list_chosen_cases = random.sample(self.list_cases, self.Nchosen_cases)
+            self.list_unchosen_cases = list(set(self.list_cases) - set(self.list_chosen_cases))
             self._randomly_choose_time_steps()
-            self._determine_unchosen_time_steps()
-        
 
         # set up the virtual OpenFoam directory for Offline (bases are kept here)
         self._set_virtual_OpenFoam_directory()
+
+    def _randomly_choose_time_steps(self):
+        # initialize dictionaries
+        self.Nchosen_time_steps_for_each_chosen_case = {}
+        self.chosen_time_steps_for_each_chosen_case = {}
+        self.list_chosen_snapshot_paths = [] 
+
+        for cs in self.list_chosen_cases:
+            # determine how many snaps the case has
+            Nsnap = self.Ntime_steps_each_case[cs]
+            # determine the number of snaps that would be chosen
+            Nchosen_snap = int(np.ceil(self.snap_fraction_per_case_min * Nsnap))
+            # hold the value in the dictionary
+            self.Nchosen_time_steps_for_each_chosen_case[cs] = Nchosen_snap
+            # randomly sample the chosen time steps
+            self.chosen_time_steps_for_each_chosen_case[cs] = random.sample(
+                self.time_steps_for_each_case[cs], Nchosen_snap
+            )
+            self.chosen_time_steps_for_each_chosen_case[cs] = sorted(
+                self.chosen_time_steps_for_each_chosen_case[cs], key=float
+            )
+            time_steps_case = self.chosen_time_steps_for_each_chosen_case[cs]
+            self.list_chosen_snapshot_paths.extend([cs+"/"+elem for elem in time_steps_case])
 
     def _replicate_directory_structure(self):
     
@@ -182,9 +192,7 @@ class Snapshot_manager:
                 identical = (Counter(self.fields_paths) == Counter(fields_paths))
                 if not identical:
                     raise FieldsNotSameError("Fields in different cases are not identical.")
-        
-
-            
+           
     def _create_list_time_steps_in_case(self, case):
 
         # List all items in the target directory
@@ -226,12 +234,11 @@ class Snapshot_manager:
             time_steps = sorted(time_steps, key=float)
             self.time_steps_for_each_case[cs] = time_steps
             self.Ntime_steps_each_case[cs] = len(time_steps)
-
-    
+ 
     def _set_virtual_OpenFoam_directory(self):
         
         # select a case, it could be random
-        cs = self.chosen_cases[0]
+        cs = self.list_chosen_cases[0]
         case_dir = os.path.join(self.symlinked_cases_directory, cs)
 
         # build source directory path to copy
@@ -279,23 +286,13 @@ class Snapshot_manager:
             symlinks=True,
         )
 
-    def make_dir_for_bases_in_virtual_OpenFoam_directory(self, index_basis):
-        
+    def make_dir_for_bases_in_virtual_OpenFoam_directory(self, index_basis): 
         # construct the path
         dir_path = os.path.join(self.bases_directory, index_basis)
         # make the directory
         os.makedirs(dir_path, exist_ok=True)
 
         return dir_path
-
-    def _build_paths(self, time_steps_case, case):
-        temp_dict = {}
-        for time_step in time_steps_case:
-            dir_path = os.path.join(self.symlinked_cases_directory, case, time_step)
-            temp_dict[time_step] = dir_path
-        return temp_dict
-
-
 
 if __name__ == "__main__":
     import argparse
@@ -313,21 +310,6 @@ if __name__ == "__main__":
         default=current_dir,
         help="Directory for the DA algorithm to be applied",
     )
-    parser.add_argument(
-        "--case_fraction",
-        type=float,
-        default=0.7,
-        help="Minimum fraction of cases to use",
-    )
-    parser.add_argument(
-        "--snap_fraction",
-        type=float,
-        default=0.8,
-        help="Minimum fraction of snapshots per case to use",
-    )
-    parser.add_argument(
-        "--file_name", default=None, help="File name of the chosen time steps"
-    )
 
     args = parser.parse_args()
 
@@ -335,12 +317,9 @@ if __name__ == "__main__":
     sm = Snapshot_manager(
         source_directory=args.source,
         project_directory=args.project_directory,
-        case_fraction_min=args.case_fraction,
-        snap_fraction_per_case_min=args.snap_fraction,
-        file_name_chosen_time_steps=args.file_name,
     )
 
     # Set up the environment
-    sm.set_environment()
+    sm.set_environment(case_fraction_min=0.5, snap_fraction_per_case_min=0.6)
     print(f"Selected {len(sm.chosen_cases)} cases out of {sm.Ncases}")
     
