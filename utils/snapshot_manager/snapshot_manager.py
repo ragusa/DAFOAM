@@ -18,9 +18,6 @@ class DirectoryExistsError(Exception):
 
 class Snapshot_manager:
 
-    __instances = []
-    __count = 0
-
     def __init__(self, source_directory, project_directory):
         try:
             self.source_directory = str(Path(source_directory).resolve(strict=False))
@@ -34,32 +31,23 @@ class Snapshot_manager:
         self.symlinked_cases_directory = os.path.join(project_directory, "symlinked_cases")
         if not os.path.isdir(self.symlinked_cases_directory):    
             self._replicate_directory_structure()
-            self._create_symlinks_of_files_to_the_files_in_original_directory()
+
+            #create symlinks_of files to the files in original directory
+            self._create_symlinks()
             
-        self._list_cases_in_symlinked_directory()
+        self._create_list_cases_in_symlinked_directory()
+
         self._create_list_snapshot_paths()
         self._create_list_fields()
+        self._build_dict_time_steps_for_each_case()
 
-        self.bases_directory = os.path.join(self.project_directory, "bases")
-        if os.path.exists(self.bases_directory):
-            raise DirectoryExistsError("bases_directory already exists !!!")
-        self._register()
+        self.virtual_openFoam_directory = os.path.join(self.project_directory, "virtual_OF")
+        if os.path.exists(self.virtual_openFoam_directory):
+            raise DirectoryExistsError("virtual_openFoam_directory already exists !!!")
 
-    @classmethod
-    def get_count(cls):
-        return cls.__count
-    
-    @classmethod
-    def get_list_instances(cls):
-        return cls.__instances
-    
-    @classmethod
-    def reset_instances(cls):
-        cls.__count = 0
-        cls.__instances = []
 
     @classmethod
-    def load_an_instance(cls, file_path):
+    def load(cls, file_path):
         try:
             file_path = str(Path(file_path).resolve(strict=False))
             with open(file_path, 'rb') as file:
@@ -68,53 +56,49 @@ class Snapshot_manager:
         except:
             raise FileNotFoundError("File doesn't exist.")
     
-    def save_snapshot_manager_object(self, file_dir_path, file_name=None):
+    def save(self, file_name):
 
-        file_name = f"snapshot_manager_instance_{self.id}" if file_name is None else file_name
         #check if the file name ends with .pkl extension
         if not file_name.endswith('.pkl'):
             file_name += '.pkl'
+
         #build absolute path if not already
-        file_dir_path = str(Path(file_dir_path).resolve(strict=False))
-        file_path = os.path.join(file_dir_path, file_name)
+        file_path = os.path.join(self.project_directory, file_name)
         # Save the instance as pickle
         with open(file_path, 'wb') as f:
             pickle.dump(self, f)
     
-    def _register(self):
-        self.id = self.__class__.__count
-        self.__class__.__count +=1
-        self.__class__.__instances.append(self)
-    
-    def set_environment(self, case_fraction_min=1, snap_fraction_per_case_min=1, list_chosen_snapshot_paths=None):
+    def set_environment(self, case_fraction=1, time_fraction_per_case=1, list_chosen_snapshot_paths=None):
 
-        self.case_fraction_min = case_fraction_min
-        self.snap_fraction_per_case_min = snap_fraction_per_case_min
-        self._build_dict_time_steps_for_each_case()
-
+        self.case_fraction = case_fraction
+        self.time_fraction_per_case = time_fraction_per_case
+        
         if list_chosen_snapshot_paths is not None:
             self.list_chosen_snapshot_paths = list_chosen_snapshot_paths
             
         else:
-            self.Nchosen_cases = np.int(np.ceil(self.Ncases * case_fraction_min))
-            self.list_chosen_cases = random.sample(self.list_cases, self.Nchosen_cases)
-            self.list_unchosen_cases = list(set(self.list_cases) - set(self.list_chosen_cases))
-            self._randomly_choose_time_steps()
+           self.list_chosen_snapshot_paths = self._randomly_choose_snapshots(self.case_fraction, self.time_fraction_per_case)
 
         # set up the virtual OpenFoam directory for Offline (bases are kept here)
         self._set_virtual_OpenFoam_directory()
 
-    def _randomly_choose_time_steps(self):
+    def _randomly_choose_snapshots(self, case_fraction, time_fraction_per_case):
+
+        #choose cases
+        self.Nchosen_cases = np.int(np.ceil(self.Ncases * case_fraction))
+        self.list_chosen_cases = random.sample(self.list_cases, self.Nchosen_cases)
+        self.list_unchosen_cases = list(set(self.list_cases) - set(self.list_chosen_cases))
+
         # initialize dictionaries
         self.Nchosen_time_steps_for_each_chosen_case = {}
         self.chosen_time_steps_for_each_chosen_case = {}
-        self.list_chosen_snapshot_paths = [] 
+        list_chosen_snapshot_paths = [] 
 
         for cs in self.list_chosen_cases:
             # determine how many snaps the case has
             Nsnap = self.Ntime_steps_each_case[cs]
             # determine the number of snaps that would be chosen
-            Nchosen_snap = int(np.ceil(self.snap_fraction_per_case_min * Nsnap))
+            Nchosen_snap = int(np.ceil(time_fraction_per_case * Nsnap))
             # hold the value in the dictionary
             self.Nchosen_time_steps_for_each_chosen_case[cs] = Nchosen_snap
             # randomly sample the chosen time steps
@@ -125,7 +109,8 @@ class Snapshot_manager:
                 self.chosen_time_steps_for_each_chosen_case[cs], key=float
             )
             time_steps_case = self.chosen_time_steps_for_each_chosen_case[cs]
-            self.list_chosen_snapshot_paths.extend([cs+"/"+elem for elem in time_steps_case])
+            list_chosen_snapshot_paths.extend([cs+"/"+elem for elem in time_steps_case])
+        return list_chosen_snapshot_paths
 
     def _replicate_directory_structure(self):
     
@@ -137,8 +122,9 @@ class Snapshot_manager:
                     self.source_directory, self.symlinked_cases_directory
                 )
                 os.makedirs(target_path, exist_ok=True)
-
-    def _create_symlinks_of_files_to_the_files_in_original_directory(self):
+    
+    #create symlinks_of files to the files in original directory
+    def _create_symlinks(self):
         
         for root, dirs, files in os.walk(self.source_directory):
             for file in files:
@@ -150,7 +136,7 @@ class Snapshot_manager:
                 if not os.path.exists(target_file):
                     os.symlink(source_file, target_file)
 
-    def _list_cases_in_symlinked_directory(self):
+    def _create_list_cases_in_symlinked_directory(self):
   
         # sort them according to the numeric value (assuming case name is numeric string)
         self.list_cases = os.listdir(self.symlinked_cases_directory)
@@ -238,31 +224,26 @@ class Snapshot_manager:
     def _set_virtual_OpenFoam_directory(self):
         
         # select a case, it could be random
-        cs = self.list_chosen_cases[0]
+        cs = self.list_cases[0]
         case_dir = os.path.join(self.symlinked_cases_directory, cs)
 
         # build source directory path to copy
         system_dir_in_case_dir = os.path.join(case_dir, "system")
         constant_dir_in_case_dir = os.path.join(case_dir, "constant")
-        zero_dir_in_case_dir = os.path.join(case_dir, "0")
-
+        
         # build target directory path to copy to
         system_dir_in_virtual_OpenFoam_directory = os.path.join(
-            self.bases_directory, "system"
+            self.virtual_openFoam_directory, "system"
         )
         if os.path.exists(system_dir_in_virtual_OpenFoam_directory):
             shutil.rmtree(system_dir_in_virtual_OpenFoam_directory)
         constant_dir_in_virtual_OpenFoam_directory = os.path.join(
-            self.bases_directory, "constant"
+            self.virtual_openFoam_directory, "constant"
         )
         if os.path.exists(constant_dir_in_virtual_OpenFoam_directory):
             shutil.rmtree(constant_dir_in_virtual_OpenFoam_directory)
-        zero_dir_in_virtual_OpenFoam_directory = os.path.join(self.bases_directory, "0")
-        if os.path.exists(zero_dir_in_virtual_OpenFoam_directory):
-            shutil.rmtree(zero_dir_in_virtual_OpenFoam_directory)
 
         # create directories in the virtual OF directory for the application of an Algorithm
-        os.makedirs(zero_dir_in_virtual_OpenFoam_directory, exist_ok=True)
         os.makedirs(constant_dir_in_virtual_OpenFoam_directory, exist_ok=True)
         os.makedirs(system_dir_in_virtual_OpenFoam_directory, exist_ok=True)
 
@@ -279,20 +260,6 @@ class Snapshot_manager:
             dirs_exist_ok=True,
             symlinks=True,
         )
-        shutil.copytree(
-            zero_dir_in_case_dir,
-            zero_dir_in_virtual_OpenFoam_directory,
-            dirs_exist_ok=True,
-            symlinks=True,
-        )
-
-    def make_dir_for_bases_in_virtual_OpenFoam_directory(self, index_basis): 
-        # construct the path
-        dir_path = os.path.join(self.bases_directory, index_basis)
-        # make the directory
-        os.makedirs(dir_path, exist_ok=True)
-
-        return dir_path
 
 if __name__ == "__main__":
     import argparse
@@ -320,6 +287,6 @@ if __name__ == "__main__":
     )
 
     # Set up the environment
-    sm.set_environment(case_fraction_min=0.5, snap_fraction_per_case_min=0.6)
+    sm.set_environment(case_fraction=0.5, time_fraction_per_case=0.6)
     print(f"Selected {sm.Nchosen_cases} cases out of {sm.Ncases}")
     
