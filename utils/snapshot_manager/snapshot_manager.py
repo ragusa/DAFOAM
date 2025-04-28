@@ -42,7 +42,7 @@ class Snapshot_manager:
 
         self.bases_directory = os.path.join(self.project_directory, "bases")
         if os.path.exists(self.bases_directory):
-            raise DirectoryExistsError("Bases directory already exists !!!")
+            raise DirectoryExistsError("bases_directory already exists !!!")
         self._register()
 
     @classmethod
@@ -321,5 +321,5 @@ if __name__ == "__main__":
 
     # Set up the environment
     sm.set_environment(case_fraction_min=0.5, snap_fraction_per_case_min=0.6)
-    print(f"Selected {len(sm.chosen_cases)} cases out of {sm.Ncases}")
+    print(f"Selected {sm.Nchosen_cases} cases out of {sm.Ncases}")
     
