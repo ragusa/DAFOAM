@@ -144,38 +144,38 @@ class Snapshot_manager:
         self.Ncases = len(self.list_cases)
     
     def _create_list_snapshot_paths(self):
-        self.list_snapshot_paths_in_symlinked_directory = []
+        self.list_snapshot_paths = []
         for cs in self.list_cases:
             time_steps, _ = self._create_list_time_steps_in_case(cs)
             temp_list = [cs+"/"+time for time in time_steps]
-            self.list_snapshot_paths_in_symlinked_directory.extend(temp_list)
+            self.list_snapshot_paths.extend(temp_list)
 
     def _create_list_fields(self):
         
-        self.fields_paths = []
+        self.list_fields_paths = []
         flag = 0
 
-        for path in self.list_snapshot_paths_in_symlinked_directory:
+        for path in self.list_snapshot_paths:
             true_path = os.path.join(self.symlinked_cases_directory, path)
             directories = os.listdir(true_path)
             self.regions = [elem for elem in directories if elem.endswith("Region")]
             self.Nregions = len(self.regions)
-            fields_paths = []
+            list_fields_paths = []
             if self.Nregions == 0:
                 fields = [elem for elem in directories if os.path.isfile(os.path.join(true_path, elem))]
-                fields_paths.extend(fields)
+                list_fields_paths.extend(fields)
 
             else:
                 for region in self.regions:
                     fields = os.listdir(os.path.join(true_path, region))
-                    fields_paths.extend([region+"/"+elem for elem in fields])
+                    list_fields_paths.extend([region+"/"+elem for elem in fields])
                 
             if flag == 0:
-                self.fields_paths.extend(fields_paths)
-                self.Nfields = len(self.fields_paths)
+                self.list_fields_paths.extend(list_fields_paths)
+                self.Nfields = len(self.list_fields_paths)
                 flag = 1
             else:
-                identical = (Counter(self.fields_paths) == Counter(fields_paths))
+                identical = (Counter(self.list_fields_paths) == Counter(list_fields_paths))
                 if not identical:
                     raise FieldsNotSameError("Fields in different cases are not identical.")
            
