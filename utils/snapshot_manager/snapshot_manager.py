@@ -85,7 +85,7 @@ class Snapshot_manager:
     def _randomly_choose_snapshots(self, case_fraction, time_fraction_per_case):
 
         #choose cases
-        self.Nchosen_cases = np.int(np.ceil(self.Ncases * case_fraction))
+        self.Nchosen_cases = int(np.ceil(self.Ncases * case_fraction))
         self.list_chosen_cases = random.sample(self.list_cases, self.Nchosen_cases)
         self.list_unchosen_cases = list(set(self.list_cases) - set(self.list_chosen_cases))
 
