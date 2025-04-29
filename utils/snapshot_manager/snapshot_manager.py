@@ -17,6 +17,57 @@ class DirectoryExistsError(Exception):
 
 
 class Snapshot_manager:
+    """
+    A class to manage OpenFOAM case snapshots for data assimilation algorithms.
+    
+    This class provides functionality to:
+    - Replicate OpenFOAM directory structure using symlinks to save disk space
+    - Select random subsets of cases and time steps for training/testing (if the user doesn't provide a list)
+    - Create a virtual OpenFOAM environment for the application of different Data Assimilation Algorithm
+    - Save and load snapshot manager state with pickle
+    
+    The manager maintains information about cases, time steps, fields, and their
+    relationships across the source directory structure.
+    
+    Attributes:
+        source_directory (str): Path to the source directory containing OpenFOAM cases
+        project_directory (str): Path to the project directory for data assimilation
+        symlinked_cases_directory (str): Directory containing symlinked cases
+        virtual_openFoam_directory (str): Directory for virtual OpenFOAM environment
+        list_cases (list): List of all cases in the symlinked directory
+        Ncases (int): Number of cases
+        list_snapshot_paths (list): List of all snapshot paths
+        list_fields_paths (list): List of field paths
+        regions (list): List of regions in OpenFOAM cases
+        Nregions (int): Number of regions
+        Nfields (int): Number of fields
+        time_steps_for_each_case (dict): Dictionary mapping cases to their time steps
+        Ntime_steps_each_case (dict): Dictionary mapping cases to number of time steps
+        list_chosen_cases (list): List of randomly chosen cases
+        list_unchosen_cases (list): List of cases not chosen
+        Nchosen_cases (int): Number of chosen cases
+        case_fraction (float): Fraction of cases to choose
+        time_fraction_per_case (float): Fraction of time steps to choose per case
+        chosen_time_steps_for_each_chosen_case (dict): Dictionary mapping chosen cases to chosen time steps
+        Nchosen_time_steps_for_each_chosen_case (dict): Dictionary mapping chosen cases to number of chosen time steps
+        list_chosen_snapshot_paths (list): List of chosen snapshot paths
+    
+    Args:
+        source_directory (str): Path to directory containing original OpenFOAM cases
+        project_directory (str): Path to project directory where data assimilation will be applied
+    
+    Raises:
+        WrongPathError: If provided paths are incorrect
+        DirectoryExistsError: If virtual OpenFOAM directory already exists
+        FieldsNotSameError: If fields in different cases are not identical
+    
+    Example:
+        >>sm = Snapshot_manager(source_directory="/path/to/cases", project_directory="/path/to/project")
+        >>sm.set_environment(case_fraction=0.5, time_fraction_per_case=0.6)
+        >>sm.save("snapshot_manager.pkl")
+        # Later, load the saved state
+        >>sm = Snapshot_manager.load("/path/to/project/snapshot_manager.pkl")
+    """
 
     def __init__(self, source_directory, project_directory):
         try:
