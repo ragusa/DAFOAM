@@ -28,7 +28,7 @@ from attr import field
 from itertools import combinations
 
 # Location of OpenFoam function objects
-function_objects_dir = 'OpenFoamFunctionObjects'
+function_objects_dir = os.path.join(os.path.dirname(__file__), 'OpenFoamFunctionObjects')
 
 # Relative path from OpenFoam virtual folder to the snapshots location 
 relative_path = "../symlinked_cases/"
