@@ -1,0 +1,88 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|       ______          _   __           ______                               |
+|      / ____/  ___    / | / /          / ____/  ____   ____ _   ____ ___     |
+|     / / __   / _ \  /  |/ /  ______  / /_     / __ \ / __ `/  / __ `__ \    |
+|    / /_/ /  /  __/ / /|  /  /_____/ / __/    / /_/ // /_/ /  / / / / / /    |
+|    \____/   \___/ /_/ |_/          /_/       \____/ \__,_/  /_/ /_/ /_/     |
+|    Copyright (C) 2015 - 2022 EPFL                                           |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      createBafflesDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Whether to convert internal faces only (so leave boundary faces intact).
+// This is only relevant if your face selection type can pick up boundary
+// faces.
+internalFacesOnly true;
+
+// Baffles to create.
+baffles
+{
+    baffleFaces
+    {
+        //- Use predefined faceZone to select faces and orientation.
+        type        faceZone;
+        zoneName    walls;
+
+        //- Optional flip
+        //flip        false;
+
+        patches
+        {
+            master
+            {
+                //- Master side patch
+                name            baffle0;
+
+                type            mappedWall;
+                sampleMode      nearestPatchFace;
+                sampleRegion    fluid;
+                samplePatch     baffle1;
+                offsetMode      uniform;
+                offset          (0 0 0);
+
+                patchFields
+                {
+                    T
+                    {
+                        type  		 zeroGradient;
+                    }
+
+                    p_rgh
+                    {
+			type            zeroGradient;
+			value           uniform 100000;
+                    }
+                    U
+                    {
+                        type            slip;
+                    }
+                }
+            }
+            slave
+            {
+                //- Slave side patch
+                name            baffle1;
+
+                type            mappedWall;
+                sampleMode      nearestPatchFace;
+                sampleRegion    fluid;
+                samplePatch     baffle0;
+                offsetMode      uniform;
+                offset          (0 0 0);
+
+                patchFields
+                {
+                    ${...master.patchFields}
+                }
+            }
+        }
+    }
+}
+
+// ************************************************************************* //

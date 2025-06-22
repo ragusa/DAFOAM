@@ -1,0 +1,88 @@
+#!/bin/bash
+
+# ensure that the script exits immediately if a command within exits with a non-zero status
+set -e
+
+# Source OpenFOAM environment functions
+# The :? will cause the script to exit if WM_PROJECT_DIR is not set.
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions
+
+# Function to set up a single case
+set-up-case(){
+    file_of_concern1="./constant/fluidRegion/phaseProperties"   
+    abs_momentumSource_z="${1}"
+    
+    # Simple check for existence
+    if [[ ! -f "${file_of_concern1}" ]]; then
+        echo "${file_of_concern1} doesn't exist"
+        exit 1
+    fi
+     
+    sed -i "s/momentumSource      (0 0 -300000);/momentumSource      (0 0 -${abs_momentumSource_z});/" ${file_of_concern1}
+    return 
+}
+
+# --- Main Script ---
+#define the Data file
+DataFile="./Data/data.csv"
+# define the directory where different cases are kept
+case_space="./case_space"
+# define the template directory
+# this is the root case upon which all other cases in the ./case_space directory are based
+directory_template="./template"
+
+#check if DataFile exists
+if [[ ! -f "${DataFile}" ]]; then
+    echo "Error: ./Data/data.csv doesn't exist or can't be accessed"
+    exit 1
+fi
+
+# checks if the template directory exists
+if [[ ! -d ${directory_template} ]]; then
+  echo "Error: 'template' directory not found in the specified directory."
+  exit 1
+fi
+
+# Create the case space if it doesn't exist
+mkdir -p "${case_space}"
+
+
+# read data row by row
+tail -n +2 "${DataFile}" | while IFS=, read -r caseName abs_momentumSource_z
+
+do 
+    echo "-----------------------------------------------------"
+    echo "Processing Case: ${caseName}"
+    echo "Momentum Source Z (Absolute): ${abs_momentumSource_z}"
+    echo "-----------------------------------------------------"
+    new_case="${case_space}/${caseName}"
+   
+    if [[ -d "${new_case}" ]]; then
+        echo "Warning: Case directory '${new_case}' already exists. Skipping copy."
+    else
+        cp -r "${directory_template}" "${new_case}"
+        echo "Directory Created: ${new_case}"
+    fi
+    
+    (
+        cd ${new_case}
+        # Set up the case
+        set-up-case "${abs_momentumSource_z}"
+        echo "Case has been set up."
+        # Run the simulation
+        echo "--> Starting simulation with $(getApplication)..."
+        if $(getApplication)> case-run.log 2>&1 ; then
+            echo "--> Simulation completed successfully for ${caseName}."
+        else
+            echo "*****************************************************" >&2
+            echo "ERROR: Simulation FAILED for case ${caseName}." >&2
+            echo "Check the log file for details: ${new_case}/case-run.log" >&2
+            echo "*****************************************************" >&2
+        fi
+    )   
+    
+done
+
+echo "=========================================="
+echo "All cases processed."
+echo "=========================================="
