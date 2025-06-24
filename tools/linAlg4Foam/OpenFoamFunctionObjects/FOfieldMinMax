@@ -1,0 +1,127 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2406                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+
+// This function object calculates the min/max values and their positions 
+// in field.
+//
+// Input arguments:
+// - path to the snapshot (time folder)
+// - field
+//
+
+fieldMinMax
+{
+    type          coded;
+    libs          (utilityFunctionObjects);
+    region        region0;
+
+    name          fieldMinMax;
+
+    codeWrite
+    #{
+        // Read the list of fields in python format (e.g., ['T', 'DT'])
+        string inputLine;
+        std::cout << "Enter list of fields: ";
+        std::getline(std::cin, inputLine);
+
+        // Strip square brackets
+        if (!inputLine.empty() && inputLine.front() == '[') inputLine.erase(0, 1);
+        if (!inputLine.empty() && inputLine.back() == ']') inputLine.pop_back();
+
+        // Split and clean elements
+        wordList fieldList;
+        std::stringstream ss(inputLine);
+        std::string item;
+    
+        while (std::getline(ss, item, ',')) {
+            // Remove single quotes and whitespace
+            item.erase(std::remove(item.begin(), item.end(), '\''), item.end());
+            item.erase(0, item.find_first_not_of(" \t"));
+            item.erase(item.find_last_not_of(" \t") + 1);
+
+            if (item.find("Region") != std::string::npos) {
+                item = "../" + item;
+            }
+    
+            fieldList.append(word(item));
+        }
+    
+        Info << "Parsed fields:" << nl;
+        forAll(fieldList, i)
+        {
+            Info << "  - " << fieldList[i] << nl;
+        }
+
+        // Loop for field + snapshot sampling
+        while (true)
+        {
+            // Define strings 
+            string snapshotPath;
+
+            // Get snapshot path
+            std::cout << "Enter snapshot path: ";
+            if (!std::getline(std::cin, snapshotPath) || snapshotPath.empty())
+            {
+                break;
+            }
+
+            // Construct snapshot path
+            std::string fieldTime = snapshotPath;
+
+            forAll(fieldList, fieldI)
+            {
+                volScalarField field
+                (
+                    IOobject
+                    (
+                        fieldList[fieldI],
+                        fieldTime,
+                        mesh(),
+                        IOobject::MUST_READ,
+                        IOobject::NO_WRITE
+                    ),
+                    mesh()
+                );
+    
+                // Initialize variables to store max and min values and their positions
+                scalar maxVal = -VGREAT;
+                scalar minVal = VGREAT;
+                label maxPos = -1;
+                label minPos = -1;
+
+                // Iterate over the field to find max and min values and their positions
+                forAll(field, fieldI)
+                {
+                    if (field[fieldI] > maxVal)
+                    {
+                        maxVal = field[fieldI];
+                        maxPos = fieldI;
+                    }
+                    if (field[fieldI] < minVal)
+                    {
+                        minVal = field[fieldI];
+                        minPos = fieldI;
+                    }
+                }
+
+                // Convert cell labels to positions
+                const vector& maxPosition = mesh().C()[maxPos];
+                const vector& minPosition = mesh().C()[minPos];
+        
+                // Info output
+                string snapshotID = snapshotPath.substr(snapshotPath.rfind('/', snapshotPath.rfind('/') - 1) + 1);
+                Info << "Minimum: " << snapshotID << ", location = " << minPosition << ", " << fieldList[fieldI] << " = " << minVal << endl;
+                Info << "Maximum: " << snapshotID << ", location = " << maxPosition << ", " << fieldList[fieldI] << " = " << maxVal << endl;
+            }
+        }
+
+    #};
+}
+
+// ************************************************************************* //
+
