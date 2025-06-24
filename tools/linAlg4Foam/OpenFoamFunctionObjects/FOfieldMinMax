@@ -89,8 +89,8 @@ fieldMinMax
                 );
     
                 // Initialize variables to store max and min values and their positions
-                scalar maxVal = -GREAT;
-                scalar minVal = GREAT;
+                scalar maxVal = -VGREAT;
+                scalar minVal = VGREAT;
                 label maxPos = -1;
                 label minPos = -1;
 
