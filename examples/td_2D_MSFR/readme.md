@@ -1,1 +1,3 @@
 This directory contains case sets for **[2D Molten Salt Fast Reactor](https://gitlab.com/foam-for-nuclear/GeN-Foam/-/tree/master/Tutorials/reactorCases/2D_MSFR)** simulations, along with illustrative examples of various Data Assimilation (DA) algorithms applied to these cases.
+
+- **[pumpPowerVariation](./pumpPowerVariation)**: This case set involves a GeN-Foam simulation of the 2D MSFR case where for each case we have a different pump power in *[phaseProperties](./constant/fluidRegion/phaseProperties)* 

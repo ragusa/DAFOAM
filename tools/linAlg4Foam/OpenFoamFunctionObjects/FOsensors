@@ -1,0 +1,149 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|       ______          _   __           ______                               |
+|      / ____/  ___    / | / /          / ____/  ____   ____ _   ____ ___     |
+|     / / __   / _ \  /  |/ /  ______  / /_     / __ \ / __ `/  / __ `__ \    |
+|    / /_/ /  /  __/ / /|  /  /_____/ / __/    / /_/ // /_/ /  / / / / / /    |
+|    \____/   \___/ /_/ |_/          /_/       \____/ \__,_/  /_/ /_/ /_/     |
+|    Copyright (C) 2015 - 2022 EPFL                                           |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      functions;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Calculates field parameters over a volume defined in cellSet (topoSet)
+//  - min - uses gMin in the cellSet
+//  - max - uses gMin in the cellSet
+//  - average - uses integral over the cellSet
+
+sensors
+{
+    type          coded;
+    libs          (utilityFunctionObjects);
+    region        region0;
+
+    name          sensor;
+
+    codeWrite
+    #{
+        // Get a list with all the sensors named "sensor"
+        List<word> sensors;
+        forAll(mesh().cellZones().names(), zoneI)
+        {
+            if (mesh().cellZones().names()[zoneI].find("sensor") != string::npos)
+            {
+                sensors.append(mesh().cellZones().names()[zoneI]);
+            }
+        }
+
+        // Read the list of fields in python format (e.g., ['T', 'DT'])
+        std::string inputLine;
+        std::cout << "Enter list of fields: ";
+        std::getline(std::cin, inputLine);
+
+        // Strip square brackets
+        if (!inputLine.empty() && inputLine.front() == '[') inputLine.erase(0, 1);
+        if (!inputLine.empty() && inputLine.back() == ']') inputLine.pop_back();
+
+        // Split and clean elements
+        wordList fieldList;
+        std::stringstream ss(inputLine);
+        std::string item;
+    
+        while (std::getline(ss, item, ',')) {
+            // Remove single quotes and whitespace
+            item.erase(std::remove(item.begin(), item.end(), '\''), item.end());
+            item.erase(0, item.find_first_not_of(" \t"));
+            item.erase(item.find_last_not_of(" \t") + 1);
+
+            // Prepend "../" only if the field contains "Region"
+            if (item.find("Region") != std::string::npos) {
+                item = "../" + item;
+            }
+    
+            fieldList.append(word(item));
+        }
+    
+        Info << "Parsed fields:" << nl;
+        forAll(fieldList, i)
+        {
+            Info << "  - " << fieldList[i] << nl;
+        }
+
+        // Loop for field + snapshot sampling
+        while (true)
+        {
+            // Define strings 
+            string snapshotPath;
+
+            // Get snapshot path
+            std::cout << "Enter snapshot path: ";
+            if (!std::getline(std::cin, snapshotPath) || snapshotPath.empty())
+            {
+                break;
+            }
+
+            // Construct snapshot path
+            std::string fieldTime = snapshotPath;
+
+            forAll(fieldList, fieldI)
+            {
+                volScalarField field
+                (
+                    IOobject
+                    (
+                        fieldList[fieldI],
+                        fieldTime,
+                        mesh(),
+                        IOobject::MUST_READ,
+                        IOobject::NO_WRITE
+                    ),
+                    mesh()
+                );
+
+                // Find field values for appropriate regions and calculate needed values
+                for (label j = 0; j < sensors.size(); ++j)
+                {
+                    // Find appropriate cell set zone
+                    const labelList& cellIDs = mesh().cellZones()[sensors[j]];
+        
+                    // Get cell volumes and field values inside the cell set 
+                    double cellSetVolume = 0;
+                    double cellSetDomainIntegral = 0;
+        
+                    scalarField cellSetField(cellIDs.size());
+        
+                    for (label i = 0; i < cellIDs.size(); ++i)
+                    {
+                        label cellID = cellIDs[i];
+                        cellSetField[i] = field[cellID];
+                        cellSetVolume = cellSetVolume + mesh().V()[cellID];
+        
+                        // Calculate domain integral
+                        cellSetDomainIntegral = cellSetDomainIntegral + mesh().V()[cellID] * field[cellID];
+                    } 
+        
+                    // Extract min, max and average values
+                    double minValue = gMin(cellSetField);
+                    double maxValue = gMax(cellSetField);
+                    double averageValue = cellSetDomainIntegral/cellSetVolume;
+                    // Info << "Total volume " << cellSetVolume << endl;
+                    // Info << "Domain integral = " << cellSetDomainIntegral << endl;
+
+                    // Info output
+                    string snapshotID = snapshotPath.substr(snapshotPath.rfind('/', snapshotPath.rfind('/') - 1) + 1);
+                    Info << snapshotID << ", " << sensors[j] << ", " << fieldList[fieldI] <<", min = " << minValue << ", max = " << maxValue << ", average = " << averageValue << endl;
+                }
+
+            }
+        }
+
+    #};
+}
+
+
+// ************************************************************************* //
