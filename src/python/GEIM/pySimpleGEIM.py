@@ -1,6 +1,6 @@
 ## MOST OF THE DEPENDENCIES ARE MISSING FOR NOW
 import numpy as np
-import ...
+import copy
 def split_on_slash(input_string):
         if '/' in input_string:
             before, after = input_string.split('/', 1)
@@ -28,52 +28,89 @@ class pyGEIM_offline:
 
     def __init__(self, snaps_obj, rank, norm_type="L2"):
         self.snaps_obj = snaps_obj
+        self.tot_cells_per_snap = self.snaps_obj.tot_cells_per_snap
         snaps_array = np.asarray(self.snaps_obj.snapshot_matrix_2D).copy()
     
         self.__snaps = snaps_array
-        self.__rank = rank
+        self.rank = rank
         self.list_fields = self.snaps_obj.list_fields_paths
         self.list_field_to_range_cells = self.snaps_obj.list_field_to_range_cells
         self.Nsnaps = snaps_obj.Nsnapshots
         self.Nfields = len(self.list_fields)
         self.dict_centroids_and_volumes_by_region = self.snaps_obj.dict_centroids_and_volumes_by_region
         self.norm_type = norm_type
-        #generate norms
-        self.__generate_norm_snaps()
-
-
-        #self.__array_indexes_maximizing_position = np.zeros((self.__rank), dtype=int)
-        #self.indexes_position_sensors = np.zeros((self.__rank), dtype=int)
-        #self.matrix_holding_bases = np.zeros((self.__Nx_stacked, self.__rank))
-
-        self.A = np.zeros((self.__rank, self.__rank))
-
-        self.index_field_basis = np.zeros(self.__rank, dtype=int)
-        
-        #this is the primary method that does all the main calculations
-        #self.__find_bases()
-
-        #except TypeError as e:
-            #print("Type error:", e)
-        #except ValueError as e:
-            #print("Value error:", e)
+        #approximation
+        self.__J = np.zeros((self.tot_cells_per_snap, self.Nsnaps))
+        self.norm_snaps = np.zeros((self.Nfields, self.Nsnaps))
+        self.normalized_norm_residual_snaps = np.zeros((self.Nfields, self.Nsnaps))
+        self.A = np.zeros((self.rank, self.rank))
+        self.__residual_snaps =  np.zeros(self.__snaps.shape)
+        self.indices_sensor_fields = np.zeros(self.rank, dtype=int)
+        self.indices_sensor_snaps = np.zeros(self.rank, dtype=int)
+        self.matrix_holding_bases = np.zeros((self.tot_cells_per_snap, self.rank))
+        self.indices_position_sensors = np.zeros((self.rank), dtype=int)
+        self.__array_indices_maximizing_position = np.zeros((self.rank), dtype=int)
+        self.scaling_factor = np.zeros((self.rank), dtype=float)
             
-    
+    def run_algorithm(self):
+        for count_basis in range(self.rank):
+            self.__residual_snaps = self.__snaps - self.__J
+            self.__generate_norm_snaps(residual=False if count_basis==0 else True)
+            self.__keep_the_book(count_basis=count_basis, norm_resid_snaps=self.norm_snaps if count_basis==0 else self.normalized_norm_residual_snaps)
+            self.__build_A(count_basis=count_basis)
+            self.__reconstruct_training_space(count_basis=count_basis)
     
     @define_norm_func 
     def __determine_norm_field(self, field_values, region):
         pass
-    
-    def __generate_norm_snaps(self):
-        self.norm_snaps = np.zeros((self.Nfields, self.Nsnaps))
+
+    def __generate_norm_snaps(self, residual=True):
         for ii, field in enumerate(self.list_fields):
             region, field_name = split_on_slash(field)
             print(region, field_name)
             (index_start, index_end) = self.list_field_to_range_cells[ii]
-
             for jj in range(self.Nsnaps):
-                field_values = self.__snaps[index_start : index_end + 1, jj]
-                self.norm_snaps[ii, jj] = self.__determine_norm_field(field_values=field_values, region=region)
+                if residual is False:
+                    field_values = self.__snaps[index_start : index_end + 1, jj]
+                    self.norm_snaps[ii, jj] = self.__determine_norm_field(field_values=field_values, region=region)
+                else:
+                    field_values = self.__residual_snaps[index_start : index_end + 1, jj]
+                    self.normalized_norm_residual_snaps[ii, jj] = self.__determine_norm_field(field_values=field_values, region=region) / self.norm_snaps[ii, jj]
+
+    def __keep_the_book(self, count_basis, norm_resid_snaps):
+        (sensor_field_index, basis_snap_index) = self.__coord_maximizing_snap_finder(norm_resid_snaps)
+        self.matrix_holding_bases[:, count_basis] = copy.deepcopy(self.__snaps[:, basis_snap_index])
+        self.matrix_holding_bases[:, count_basis] = copy.deepcopy(self.__residual_snaps[:, basis_snap_index])
+        (index_start, index_end) = self.list_field_to_range_cells[sensor_field_index]
+        index_maximizing_position = np.argmax(np.abs(self.matrix_holding_bases[index_start : index_end + 1, count_basis]))
+        self.__array_indices_maximizing_position[count_basis] = int(index_maximizing_position + index_start)
+        self.indices_position_sensors[count_basis] = index_maximizing_position
+        self.indices_sensor_fields[count_basis] = sensor_field_index
+        self.indices_sensor_snaps[count_basis] = basis_snap_index
+        self.scaling_factor[count_basis] = self.matrix_holding_bases[self.__array_indices_maximizing_position[count_basis], count_basis]
+
+    def __build_A(self, count_basis):
+        for i in range(count_basis + 1):
+                for j in range(count_basis + 1):
+                    if i == count_basis or j == count_basis:
+                        self.A[i, j] = self.matrix_holding_bases[self.__array_indices_maximizing_position[i], j] / self.scaling_factor[i]
+
+    def __coord_maximizing_snap_finder(self, norms):
+        coord_max = np.unravel_index(np.argmax(norms), norms.shape)
+        return coord_max
+  
+    def __reconstruct_training_space(self, count_basis):
+        mat_A = self.A[:count_basis + 1, :count_basis + 1]
+        for index_snap in range(self.Nsnaps):
+            b = np.asarray(self.__snaps[self.__array_indices_maximizing_position[:count_basis + 1], index_snap]) / self.scaling_factor[:count_basis + 1]
+            d_i = np.linalg.solve(mat_A, b)
+            self.__J[:, index_snap] = self.matrix_holding_bases[:, :count_basis + 1] @ d_i
+    
+class pyGEIM_online:
+    def __init__(self, offline_object, snaps_object):
+        self.offline_object = offline_object
+        self.snaps_object = snaps_object
+
 
 # Initialise the snapshot manager:
 project_dir = "../DAFOAM/project_check_geim_foam"
