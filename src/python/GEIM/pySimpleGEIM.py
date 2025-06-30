@@ -26,7 +26,7 @@ def define_norm_func(func):
        
 class pyGEIM_offline:
 
-    def __init__(self, snaps_obj, rank, norm_type="L2"):
+    def __init__(self, snaps_obj, rank, list_observable_fields, norm_type="L2"):
         self.snaps_obj = snaps_obj
         self.tot_cells_per_snap = self.snaps_obj.tot_cells_per_snap
         snaps_array = np.asarray(self.snaps_obj.snapshot_matrix_2D_training).copy()
@@ -34,15 +34,21 @@ class pyGEIM_offline:
         self.__snaps = snaps_array
         self.rank = rank
         self.list_fields = self.snaps_obj.list_fields_paths
+        self.list_observable_fields = list_observable_fields
+        self.list_indices_observable_fields = [self.list_fields.index(elem) for elem in self.list_observable_fields  if elem in self.list_fields ]
+        self.list_non_observable_fields = list(set(self.list_fields) - set(self.list_observable_fields))
+        self.list_indices_non_observable_fields = [self.list_fields.index(elem) for elem in self.list_non_observable_fields  if elem in self.list_fields ]
         self.list_field_to_range_cells = self.snaps_obj.list_field_to_range_cells
         self.Nsnaps = snaps_obj.Nsnapshots_training
         self.Nfields = len(self.list_fields)
+        self.Nobs = len(self.list_observable_fields)
+
         self.dict_centroids_and_volumes_by_region = self.snaps_obj.dict_centroids_and_volumes_by_region
         self.norm_type = norm_type
         #approximation
         self.__J = np.zeros((self.tot_cells_per_snap, self.Nsnaps))
-        self.norm_snaps = np.zeros((self.Nfields, self.Nsnaps))
-        self.normalized_norm_residual_snaps = np.zeros((self.Nfields, self.Nsnaps))
+        self.norm_snaps = np.zeros((self.Nobs, self.Nsnaps))
+        self.normalized_norm_residual_snaps = np.zeros((self.Nobs, self.Nsnaps))
         self.A = np.zeros((self.rank, self.rank))
         self.__residual_snaps =  np.zeros(self.__snaps.shape)
         self.indices_sensor_fields = np.zeros(self.rank, dtype=int)
@@ -65,10 +71,10 @@ class pyGEIM_offline:
         pass
 
     def __generate_norm_snaps(self, residual=True):
-        for ii, field in enumerate(self.list_fields):
+        for ii, field in enumerate(self.list_observable_fields):
             region, field_name = split_on_slash(field)
-            print(region, field_name)
-            (index_start, index_end) = self.list_field_to_range_cells[ii]
+            index_field = self.list_indices_observable_fields[ii]
+            (index_start, index_end) = self.list_field_to_range_cells[index_field]
             for jj in range(self.Nsnaps):
                 if residual is False:
                     field_values = self.__snaps[index_start : index_end + 1, jj]
@@ -96,8 +102,9 @@ class pyGEIM_offline:
                         self.A[i, j] = self.matrix_holding_bases[self.array_indices_maximizing_position[i], j] / self.scaling_factor[i]
 
     def __coord_maximizing_snap_finder(self, norms):
-        coord_max = np.unravel_index(np.argmax(norms), norms.shape)
-        return coord_max
+        index_obs_field, index_snap = np.unravel_index(np.argmax(norms), norms.shape)
+        index_field = self.list_indices_observable_fields[index_obs_field]
+        return (index_obs_field, index_snap)
   
     def __reconstruct_training_space(self, count_basis):
         mat_A = self.A[:count_basis + 1, :count_basis + 1]
@@ -172,3 +179,4 @@ for ii in range(1, N_basis):
     list_magic_points.append(loc_idx)
     list_scaling_factors.append(residual[snp_idx, obs_idx[fld_idx], loc_idx])
     basis = np.concatenate((basis, residual[snp_idx:snp_idx+1, :, :]), axis=0)
+
