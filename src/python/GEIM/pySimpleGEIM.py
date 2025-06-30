@@ -1,6 +1,79 @@
 ## MOST OF THE DEPENDENCIES ARE MISSING FOR NOW
 import numpy as np
 import ...
+def split_on_slash(input_string):
+        if '/' in input_string:
+            before, after = input_string.split('/', 1)
+        else:
+            before = ''
+            after = input_string
+        return before, after
+
+
+def define_norm_func(func):
+    def definition(self, field_values, region):
+        if self.norm_type == "L2":
+            volumes = self.dict_centroids_and_volumes_by_region[region][1]
+            return np.sqrt(np.sum(field_values ** 2 * volumes))
+        elif self.norm_type == "Linf":
+            return np.max(np.abs(field_values))
+        else:
+            raise ValueError(f"Unsupported norm type: {self.norm_type}")
+    
+    return definition
+    
+            
+       
+class pyGEIM_offline:
+
+    def __init__(self, snaps_obj, rank, norm_type="L2"):
+        self.snaps_obj = snaps_obj
+        snaps_array = np.asarray(self.snaps_obj.snapshot_matrix_2D).copy()
+    
+        self.__snaps = snaps_array
+        self.__rank = rank
+        self.list_fields = self.snaps_obj.list_fields_paths
+        self.list_field_to_range_cells = self.snaps_obj.list_field_to_range_cells
+        self.Nsnaps = snaps_obj.Nsnapshots
+        self.Nfields = len(self.list_fields)
+        self.dict_centroids_and_volumes_by_region = self.snaps_obj.dict_centroids_and_volumes_by_region
+        self.norm_type = norm_type
+        #generate norms
+        self.__generate_norm_snaps()
+
+
+        #self.__array_indexes_maximizing_position = np.zeros((self.__rank), dtype=int)
+        #self.indexes_position_sensors = np.zeros((self.__rank), dtype=int)
+        #self.matrix_holding_bases = np.zeros((self.__Nx_stacked, self.__rank))
+
+        self.A = np.zeros((self.__rank, self.__rank))
+
+        self.index_field_basis = np.zeros(self.__rank, dtype=int)
+        
+        #this is the primary method that does all the main calculations
+        #self.__find_bases()
+
+        #except TypeError as e:
+            #print("Type error:", e)
+        #except ValueError as e:
+            #print("Value error:", e)
+            
+    
+    
+    @define_norm_func 
+    def __determine_norm_field(self, field_values, region):
+        pass
+    
+    def __generate_norm_snaps(self):
+        self.norm_snaps = np.zeros((self.Nfields, self.Nsnaps))
+        for ii, field in enumerate(self.list_fields):
+            region, field_name = split_on_slash(field)
+            print(region, field_name)
+            (index_start, index_end) = self.list_field_to_range_cells[ii]
+
+            for jj in range(self.Nsnaps):
+                field_values = self.__snaps[index_start : index_end + 1, jj]
+                self.norm_snaps[ii, jj] = self.__determine_norm_field(field_values=field_values, region=region)
 
 # Initialise the snapshot manager:
 project_dir = "../DAFOAM/project_check_geim_foam"
