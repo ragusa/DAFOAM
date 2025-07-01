@@ -1,0 +1,269 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|       ______          _   __           ______                               |
+|      / ____/  ___    / | / /          / ____/  ____   ____ _   ____ ___     |
+|     / / __   / _ \  /  |/ /  ______  / /_     / __ \ / __ `/  / __ `__ \    |
+|    / /_/ /  /  __/ / /|  /  /_____/ / __/    / /_/ // /_/ /  / / / / / /    |
+|    \____/   \___/ /_/ |_/          /_/       \____/ \__,_/  /_/ /_/ /_/     |
+|    Copyright (C) 2015 - 2022 EPFL                                           |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      functions;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// This function object takes a list of scalar and a list of snapshots paths as
+// input arguments, and returns a sum of fields, where each of the field is 
+// multiplied by appropriate.
+
+linearCombination
+{
+    type          coded;
+    libs          (utilityFunctionObjects);
+    region        region0;
+
+    name          linearCombination;
+
+    codeWrite
+    #{
+
+        // Read a list of fields
+        string fieldsList;
+        cout << "Enter list of fields: ";
+        std::getline(std::cin, fieldsList);
+
+        // Remove square brackets if they exist
+        if (!fieldsList.empty() && fieldsList.front() == '[') fieldsList.erase(0, 1);
+        if (!fieldsList.empty() && fieldsList.back() == ']') fieldsList.pop_back();
+
+        // Prepare stream
+        std::stringstream fieldsStream(fieldsList);
+        std::string fieldToken;
+        List<string> fieldNames;
+        while (std::getline(fieldsStream, fieldToken, ',')) {
+            // Trim whitespace
+            fieldToken.erase(0, fieldToken.find_first_not_of(" \t"));
+            fieldToken.erase(fieldToken.find_last_not_of(" \t") + 1);
+            // Remove quotes
+            if (!fieldToken.empty() && (fieldToken.front() == '\'' || fieldToken.front() == '"')) fieldToken.erase(0, 1);
+            if (!fieldToken.empty() && (fieldToken.back() == '\'' || fieldToken.back() == '"')) fieldToken.pop_back();
+
+            if (fieldToken.find("Region") != std::string::npos) {
+                fieldToken = "../" + fieldToken;
+            }
+
+            fieldNames.append(word(fieldToken));
+        }
+
+        // Print the field names
+        Info << "Parsed field names: " << nl;
+        forAll(fieldNames, field) {
+            Info << "    " << fieldNames[field] << nl;
+        }
+
+        while (true)
+        {
+            // Read a list of coefficients in a python format separated by a comma (e.g., [0.5, 0.5, 0.5, 0.5])
+            string inputCoefList;
+            std::cout << "Enter list of coefficients: ";
+            if (!std::getline(std::cin, inputCoefList) || inputCoefList.empty())
+            {
+                break;
+            }
+
+            // Remove square brackets if they exist
+            if (!inputCoefList.empty() && inputCoefList.front() == '[') inputCoefList.erase(0, 1);
+            if (!inputCoefList.empty() && inputCoefList.back() == ']') inputCoefList.pop_back();
+
+            // Create a list of coefficients
+            std::stringstream ss(inputCoefList);
+            std::string token;
+            List<scalar> coefficients;
+
+            while (std::getline(ss, token, ',')) {
+                // Trim whitespace
+                token.erase(0, token.find_first_not_of(" \t"));
+                token.erase(token.find_last_not_of(" \t") + 1);
+
+                try {
+                    scalar value = std::stod(token);
+                    coefficients.append(value);
+                } catch (...) {
+                    Info << "Invalid number: " << token << nl;
+                }
+            }
+
+            // Print the coefficients
+            Info << "Parsed coefficients: " << nl;
+            forAll(coefficients, i) {
+                Info << "    " << coefficients[i] << nl;
+            }
+
+            // Read a list of snapshots in a python format (separated by a comma)
+            string inputSnapshotsList;
+            std::cout << "Enter list of snapshots: ";
+
+            if (!std::getline(std::cin, inputSnapshotsList) || inputSnapshotsList.empty())
+            {   
+                break;
+            }
+    
+            // Remove square brackets if they exist        
+            if (!inputSnapshotsList.empty() && inputSnapshotsList.front() == '[') inputSnapshotsList.erase(0, 1);
+            if (!inputSnapshotsList.empty() && inputSnapshotsList.back() == ']') inputSnapshotsList.pop_back();
+
+            // Prepare stream
+            std::stringstream snapsStream(inputSnapshotsList);
+            std::string snapsToken;
+            List<string> snapshotsList;
+
+            while (std::getline(snapsStream, snapsToken, ',')) {
+                // Trim whitespace
+                snapsToken.erase(0, snapsToken.find_first_not_of(" \t"));
+                snapsToken.erase(snapsToken.find_last_not_of(" \t") + 1);
+                // Remove quotes
+                if (!snapsToken.empty() && (snapsToken.front() == '\'' || snapsToken.front() == '"')) snapsToken.erase(0, 1);
+                if (!snapsToken.empty() && (snapsToken.back() == '\'' || snapsToken.back() == '"')) snapsToken.pop_back();
+
+                snapshotsList.append(word(snapsToken));
+            }
+
+            // Print the snapshots
+            Info << "Parsed snapshots: " << nl;
+            forAll(snapshotsList, snapshot) {
+                Info << "    " << snapshotsList[snapshot] << nl;
+            }
+
+            // Check if the number of coefficients matches the number of snapshots
+            if (coefficients.size() != snapshotsList.size())
+            {
+                FatalErrorInFunction
+                    << "The number of coefficients (" << coefficients.size() << ") does not match the number of snapshots (" << snapshotsList.size() << ")"
+                    << exit(FatalError);
+            }
+
+            // Read the output location
+            string outputLocation;
+            std::cout << "Enter output location: ";
+            std::getline(std::cin, outputLocation);
+
+            // Remove square brackets
+            if (!outputLocation.empty() && outputLocation.front() == '[') outputLocation.erase(0, 1);
+            if (!outputLocation.empty() && outputLocation.back() == ']') outputLocation.pop_back();
+            // Remove leading and trailing whitespace       
+            outputLocation.erase(0, outputLocation.find_first_not_of(" \t"));
+            outputLocation.erase(outputLocation.find_last_not_of(" \t") + 1);
+            // Remove quotes
+            if (!outputLocation.empty() && (outputLocation.front() == '\'' || outputLocation.front() == '"')) outputLocation.erase(0, 1);
+            if (!outputLocation.empty() && (outputLocation.back() == '\'' || outputLocation.back() == '"')) outputLocation.pop_back();
+
+            // Get the OpenFoam work directory and construct the links
+            const char* caseDir = "FOAM_CASE";
+            const char* caseDirPath = std::getenv(caseDir);
+            outputLocation = std::string(caseDirPath) + "/" + outputLocation;
+
+            // Make the output directory
+            if (!isDir(outputLocation))
+            {
+                mkDir(outputLocation);
+            }
+
+            // Construct path to the first snapshot
+            std::string fieldTime0 = snapshotsList[0];
+
+            forAll(fieldNames, field)
+            {   
+                // Use the first field as a base
+                volScalarField sumOfFields
+                (
+                    IOobject
+                    (
+                        fieldNames[field],
+                        fieldTime0,
+                        mesh(),
+                        IOobject::MUST_READ,
+                        IOobject::NO_WRITE
+                    ),
+                    mesh()
+                );
+ 
+                // Multiply the field by its coefficient
+                sumOfFields = coefficients[0] * sumOfFields;
+ 
+                // Sum the first field with the rest of the fields
+                if (coefficients.size() > 1)
+                {
+                    for (label i = 1; i < coefficients.size(); ++i)
+                    {
+                        // Construct path to the snapshot
+                        std::string fieldTime = snapshotsList[i];
+ 
+                        volScalarField originalField
+                        (
+                            IOobject
+                            (
+                                fieldNames[field],
+                                fieldTime,
+                                mesh(),
+                                IOobject::MUST_READ,
+                                IOobject::NO_WRITE
+                            ),
+                            mesh()
+                        );
+ 
+                        // Multiply the field by its coefficient and add to the first field
+                        originalField = coefficients[i] * originalField;               
+                        sumOfFields += originalField;
+                    }
+                }
+ /*
+                // Rename the sum of fields
+                volScalarField renamedField
+                (
+                    IOobject
+                    (
+                        "linearCombination_" + fieldNames[field],
+                        mesh().time().timeName(),
+                        mesh(),
+                        IOobject::NO_READ,
+                        IOobject::NO_WRITE
+                    ),
+                    sumOfFields
+                );
+ 
+   */
+   		// Extract just the field name without the region path
+		word cleanFieldName = fileName(fieldNames[field]).name();
+
+		// Then use cleanFieldName instead of fieldNames[field]
+		volScalarField renamedField
+		(
+		    IOobject
+		    (
+			cleanFieldName,  // Use cleanFieldName here
+			mesh().time().timeName(),
+			mesh(),
+			IOobject::NO_READ,
+			IOobject::NO_WRITE
+		    ),
+		    sumOfFields
+		);
+                // Result is printed into 'constant'
+                renamedField.write();
+
+                // Move the result to the output location
+                std::string moveCommand = "mv " + renamedField.path() + "/" +  cleanFieldName  + " " + outputLocation;
+                system(moveCommand);
+
+            }
+
+        }
+
+    #};
+}
+
+
+// ************************************************************************* //

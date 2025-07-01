@@ -1,0 +1,185 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|       ______          _   __           ______                               |
+|      / ____/  ___    / | / /          / ____/  ____   ____ _   ____ ___     |
+|     / / __   / _ \  /  |/ /  ______  / /_     / __ \ / __ `/  / __ `__ \    |
+|    / /_/ /  /  __/ / /|  /  /_____/ / __/    / /_/ // /_/ /  / / / / / /    |
+|    \____/   \___/ /_/ |_/          /_/       \____/ \__,_/  /_/ /_/ /_/     |
+|    Copyright (C) 2015 - 2022 EPFL                                           |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      functions;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Reads the value of a field in a given point. It is designed to read multiple
+// cases, as well as fields and also points.
+//
+// Input arguments:
+// - path to the snapshot (time folder)
+// - field
+// - point
+//
+
+sample
+{
+    type          coded;
+    libs          (utilityFunctionObjects);
+    region        region0;
+
+    name          sample;
+
+    codeWrite
+    #{
+        // Read a list of points in python format (e.g., [(1.0, 1.0, 1.0), (1.5, 1.7, 3.9)])
+        std::string inputPoints;
+        std::cout << "Enter list of points: ";
+        std::getline(std::cin, inputPoints);
+
+        // Remove surrounding square brackets if present
+        if (!inputPoints.empty() && inputPoints.front() == '[') inputPoints.erase(0, 1);
+        if (!inputPoints.empty() && inputPoints.back() == ']') inputPoints.pop_back();
+
+        // Prepare container for points
+        List<point> probePoints;
+
+        // Tokenize by ')', each representing the end of a point tuple
+        std::stringstream pointStream(inputPoints);
+        std::string segment;
+        while (std::getline(pointStream, segment, ')'))
+        {
+            // Skip empty segments
+            if (segment.find(',') == std::string::npos) continue;
+
+            // Remove leading '(' or ',' if present
+            size_t start = segment.find('(');
+            if (start != std::string::npos)
+                segment = segment.substr(start + 1);
+            else
+                segment.erase(0, segment.find_first_not_of(" ,"));
+
+            // Split segment into coordinates
+            std::stringstream coordStream(segment);
+            std::string value;
+            scalar coords[3];
+            int i = 0;
+
+            while (std::getline(coordStream, value, ',') && i < 3)
+            {
+                coords[i++] = std::stof(value);
+            }
+
+            if (i != 3)
+            {
+                Info << "Invalid point: (" << segment << ")" << nl;
+                continue;
+            }
+
+            probePoints.append(point(coords[0], coords[1], coords[2]));
+        }
+
+        // Print parsed points
+        Info << "Parsed points:" << nl;
+        forAll(probePoints, pointI)
+        {
+            Info << "  - " << probePoints[pointI] << nl;
+        }
+        
+        // Read the list of fields in python format (e.g., ['T', 'DT'])
+        std::string inputLine;
+        std::cout << "Enter list of fields: ";
+        std::getline(std::cin, inputLine);
+
+        // Strip square brackets
+        if (!inputLine.empty() && inputLine.front() == '[') inputLine.erase(0, 1);
+        if (!inputLine.empty() && inputLine.back() == ']') inputLine.pop_back();
+
+        // Split and clean elements
+        wordList fieldList;
+        std::stringstream fieldStream(inputLine);
+        std::string item;
+    
+        while (std::getline(fieldStream, item, ',')) {
+            // Remove single quotes and whitespace
+            item.erase(std::remove(item.begin(), item.end(), '\''), item.end());
+            item.erase(0, item.find_first_not_of(" \t"));
+            item.erase(item.find_last_not_of(" \t") + 1);
+
+            // Prepend "../" only if the field contains "Region"
+            if (item.find("Region") != std::string::npos) {
+                item = "../" + item;
+            }
+    
+            fieldList.append(word(item));
+        }
+    
+        Info << "Parsed fields:" << nl;
+        forAll(fieldList, i)
+        {
+            Info << "  - " << fieldList[i] << nl;
+        }
+
+        // Loop for field + snapshot sampling
+        while (true)
+        {
+            // Define strings 
+            string snapshotPath;
+
+            // Get snapshot path
+            std::cout << "Enter snapshot path: ";
+            if (!std::getline(std::cin, snapshotPath) || snapshotPath.empty())
+            {
+                break;
+            }
+
+            // Construct snapshot path
+            std::string fieldTime = snapshotPath;
+
+            forAll(fieldList, fieldI)
+            {
+                volScalarField field
+                (
+                    IOobject
+                    (
+                        fieldList[fieldI],
+                        fieldTime,
+                        mesh(),
+                        IOobject::MUST_READ,
+                        IOobject::NO_WRITE
+                    ),
+                    mesh()
+                );
+    
+                // Access only the internal field
+                // const scalarField& internalField = field.internalField();
+    
+                forAll(probePoints, pointI)
+                {
+                    label cellID = mesh().findCell(probePoints[pointI]);
+    
+                    // Chech the point is in the domain
+                    if (cellID == -1)
+                    {
+                        Info << "Point " << probePoints[pointI] << " is outside the mesh." << nl;
+                    }
+                    else
+                    {
+                        // Read the field value within that cell
+                        // scalar fieldValue = internalField[cellID];
+                        scalar fieldValue = field[cellID];
+                        
+                        // Info output
+                        string snapshotID = snapshotPath.substr(snapshotPath.rfind('/', snapshotPath.rfind('/') - 1) + 1);
+                        Info << snapshotID << ", point = " << probePoints[pointI] << ", " << fieldList[fieldI] << " = " << fieldValue <<  endl;
+                    }
+                }
+            }
+        }
+        
+    #};
+}
+
+// ************************************************************************* //
