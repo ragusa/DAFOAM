@@ -198,12 +198,13 @@ class GeimFOAM_offline:
     #This method builds the system matrix in each iteration of the GEIM algorithm.
     def _build_matrix_A(self, count_basis):
         for i in range(count_basis + 1):
-                sensor_point_i = self.list_points[i]
-                sensor_field_i = self.list_sensor_to_field[i]
                 for j in range(count_basis + 1):
-                    sensor_basis_j = self.list_sensor_to_basis_paths[j]
-                    sensoring_results = linAlg4Foam.readFromPoints(self.virtual_openFoam_directory, [sensor_basis_j], [sensor_field_i], [sensor_point_i])
-                    self.A[i, j] = float(sensoring_results[sensor_basis_j][sensor_field_i][1]) / self.scaling_factor[i]
+                    if i == count_basis or j == count_basis:
+                        sensor_point_i = self.list_points[i]
+                        sensor_field_i = self.list_sensor_to_field[i]
+                        sensor_basis_j = self.list_sensor_to_basis_paths[j]
+                        sensoring_results = linAlg4Foam.readFromPoints(self.virtual_openFoam_directory, [sensor_basis_j], [sensor_field_i], [sensor_point_i])
+                        self.A[i, j] = float(sensoring_results[sensor_basis_j][sensor_field_i][1]) / self.scaling_factor[i]
 
     # This method reconstructs the training space using the matrix A and the sensor data.
     # It reads the sensor data from the already determined points and computes the coefficients to reconstruct the snapshots.
