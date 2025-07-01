@@ -272,4 +272,4 @@ class GeimFOAM_online:
             reconstructed_snap = self.list_reconstructed_snaps[i]
             for field in self.all_fields:
                 region, field_name = split_on_slash(field)
-                linAlg4Foam.linearCombination(self.virtual_openFoam_directory, [self.list_sensor_to_basis_paths[:self.rank_reconstruct], [field], [coeffs_list], [os.path.join("../symlinked_cases", reconstructed_snap, region)])
+                linAlg4Foam.linearCombination(self.virtual_openFoam_directory, [self.list_sensor_to_basis_paths[:self.rank_reconstruct]], [field], [coeffs_list], [os.path.join("../symlinked_cases", reconstructed_snap, region)])
