@@ -24,7 +24,7 @@ def define_norm_func(func):
     
             
        
-class pyGEIM_offline:
+class GeimFoam_offline:
 
     def __init__(self, snaps_obj, rank, list_observable_fields, norm_type="L2"):
         self.snaps_obj = snaps_obj
@@ -113,7 +113,7 @@ class pyGEIM_offline:
             d_i = np.linalg.solve(mat_A, b)
             self.__J[:, index_snap] = self.matrix_holding_bases[:, :count_basis + 1] @ d_i
     
-class pyGEIM_online:
+class GeimFoam_online:
     def __init__(self, offline_object, snaps_object, rank_upto):
         self.offline_object = offline_object
         self.A = self.offline_object.A[:rank_upto, :rank_upto]
