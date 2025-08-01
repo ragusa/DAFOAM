@@ -96,7 +96,7 @@ class pyGEIM_offline:
     def __generate_norm_snaps(self, residual=True):
         """Compute norms of snapshot fields or residuals."""
         for ii, field in enumerate(self.list_observable_fields):
-            region, field_name = split_on_slash(field)
+            region, _ = split_on_slash(field)
             index_field = self.list_indices_observable_fields[ii]
             (index_start, index_end) = self.list_field_to_range_cells[index_field]
             for jj in range(self.Nsnaps):
@@ -162,9 +162,9 @@ class pyGEIM_online:
         self.snapshot_testing = self.snaps_object.snapshot_matrix_2D_testing
         self.Nsnaps = self.snapshot_testing.shape[1]
         self.J = np.zeros(self.snapshot_testing.shape)
-        self.reconstruct_test_space()
+        self.__reconstruct_test_space()
         
-    def reconstruct_test_space(self):
+    def __reconstruct_test_space(self):
         """Reconstruct all test snapshots using the precomputed GEIM basis."""
         for index_snap in range(self.Nsnaps):
             b = np.asarray(self.snapshot_testing[self.array_indices_maximizing_position[:self.rank_upto], index_snap]) / self.scaling_factor[:self.rank_upto]
