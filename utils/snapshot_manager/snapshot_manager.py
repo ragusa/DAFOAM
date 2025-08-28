@@ -229,7 +229,14 @@ class Snapshot_manager:
                 identical = (Counter(self.list_fields_paths) == Counter(list_fields_paths))
                 if not identical:
                     raise FieldsNotSameError("Fields in different cases are not identical.")
-           
+
+    def _is_numeric_string(self, s):
+        try:
+            float(s)        
+            return True     
+        except ValueError:  
+            return False  
+            
     def _create_list_time_steps_in_case(self, case):
 
         # List all items in the target directory
@@ -239,7 +246,7 @@ class Snapshot_manager:
         time_steps = [
             d
             for d in list_current_directory
-            if d.isnumeric()
+            if self._is_numeric_string(d)
             and d != "0"
             and os.path.isdir(os.path.join(case_directory, d))
         ]
@@ -263,7 +270,7 @@ class Snapshot_manager:
             time_steps = [
                 d
                 for d in list_current_directory
-                if d.isnumeric()
+                if self._is_numeric_string(d)
                 and d != "0"
                 and os.path.isdir(os.path.join(case_directory, d))
             ]
